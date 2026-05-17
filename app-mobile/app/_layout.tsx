@@ -8,14 +8,16 @@ import { View } from 'react-native';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { C } from '../src/lib/colors';
+import { initSentry, Sentry } from '../src/lib/sentry';
 
 SplashScreen.preventAutoHideAsync();
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded] = useFonts({
     Fraunces_500Medium, Fraunces_500Medium_Italic,
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
@@ -42,3 +44,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
