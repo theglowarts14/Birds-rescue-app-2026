@@ -6,11 +6,15 @@
   :root { color-scheme: light; }
   *,*::before,*::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; overscroll-behavior-y: none; }
   button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
     outline: 2px solid #c44a1a;
     outline-offset: 2px;
     border-radius: 4px;
+  }
+  @media (hover: none) {
+    button, a, label { -webkit-tap-highlight-color: rgba(196, 74, 26, 0.15); }
   }
 }
 
@@ -19,14 +23,21 @@
     @apply inline-flex items-center gap-1.5 px-3 py-2 bg-cream border border-black/10 rounded-full text-sm font-medium text-ink-soft;
   }
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-5 py-3 bg-rust text-paper rounded-full font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(196,74,26,0.55)] hover:translate-y-[-1px] transition;
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-3 bg-rust text-paper rounded-full font-semibold text-sm shadow-[0_10px_24px_-10px_rgba(196,74,26,0.55)] hover:translate-y-[-1px] active:translate-y-0 transition;
   }
   .btn-ghost {
-    @apply inline-flex items-center gap-2 px-4 py-2.5 bg-cream border border-black/10 rounded-full text-sm font-semibold text-ink;
+    @apply inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2.5 bg-cream border border-black/10 rounded-full text-sm font-semibold text-ink;
   }
   .card {
-    @apply bg-paper border border-black/10 rounded-2xl p-5 transition;
+    @apply bg-paper border border-black/10 rounded-2xl p-4 sm:p-5 transition;
   }
   .display { @apply font-display font-medium tracking-tight; }
   .kicker { @apply font-mono text-[11px] tracking-[2px] uppercase text-ink-muted; }
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
+
+@layer utilities {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-top    { padding-top:    env(safe-area-inset-top); }
 }

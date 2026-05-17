@@ -28,8 +28,8 @@ export default function Inventory() {
       {q.isLoading && <LoadingRow />}
       {!q.isLoading && q.data?.length === 0 && <EmptyState icon={<Boxes size={28} />} title="No inventory tracked yet" />}
 
-      <div className="card !p-0 overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.5fr_100px_100px_100px_120px] px-5 py-3 bg-cream text-[10px] font-mono tracking-widest uppercase text-ink-muted border-b border-black/10">
+      <div className="hidden md:block card !p-0 overflow-hidden">
+        <div className="grid grid-cols-[1.5fr_100px_100px_100px_120px] px-5 py-3 bg-cream text-[10px] font-mono tracking-widest uppercase text-ink-muted border-b border-black/10">
           <div>Item</div><div>Stock</div><div>Unit</div><div>Low at</div><div></div>
         </div>
         {q.data?.map((r: any) => (
@@ -45,6 +45,26 @@ export default function Inventory() {
                 <span className="px-2 py-1 rounded-full bg-moss/15 text-moss text-[10px] font-mono uppercase tracking-wider">OK</span>
               )}
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="md:hidden space-y-2">
+        {q.data?.map((r: any) => (
+          <div key={r.id} className={`card !p-3 relative ${r.low ? 'bg-amber/5 border-amber/30' : ''}`}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="display truncate">{r.item}</div>
+                <div className="text-[11px] text-ink-muted">Low at {r.low_threshold} {r.unit}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className={`display text-2xl ${r.low ? 'text-amber' : ''}`}>{r.stock}</div>
+                <div className="text-[10px] text-ink-muted font-mono uppercase">{r.unit}</div>
+              </div>
+            </div>
+            {r.low && (
+              <span className="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-amber text-paper text-[9px] font-mono uppercase tracking-wider">Reorder</span>
+            )}
           </div>
         ))}
       </div>

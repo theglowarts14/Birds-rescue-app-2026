@@ -38,11 +38,13 @@ export default function Audit() {
 
       <div className="card !p-0 overflow-hidden">
         {q.data?.map((e: any) => (
-          <div key={e.id} className="grid grid-cols-[140px_120px_1fr] gap-4 items-center px-5 py-3 border-b border-black/5 last:border-0">
-            <div className="text-xs font-mono text-ink-muted">{new Date(e.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</div>
-            <span className={`px-2 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider justify-self-start ${KIND_COLOR[e.kind] ?? 'bg-cream text-ink-soft'}`}>
-              {e.kind.replace('-', ' ')}
-            </span>
+          <div key={e.id} className="md:grid md:grid-cols-[140px_120px_1fr] gap-4 items-center px-4 sm:px-5 py-3 border-b border-black/5 last:border-0">
+            <div className="flex md:contents items-center justify-between gap-3 mb-1 md:mb-0">
+              <div className="text-[11px] font-mono text-ink-muted md:text-xs">{new Date(e.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</div>
+              <span className={`px-2 py-0.5 md:py-1 rounded-full text-[10px] font-mono uppercase tracking-wider md:justify-self-start ${KIND_COLOR[e.kind] ?? 'bg-cream text-ink-soft'}`}>
+                {e.kind.replace('-', ' ')}
+              </span>
+            </div>
             <div className="text-sm min-w-0">
               {e.case && (
                 <Link to={`/${orgSlug}/team/cases/${e.case_id}`} className="font-mono text-xs text-rust mr-2">
