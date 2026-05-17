@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /app
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [deps, web]
+  - package-ecosystem: npm
+    directory: /app-mobile
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [deps, mobile]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    labels: [deps, ci]
