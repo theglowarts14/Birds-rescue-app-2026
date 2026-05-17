@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Karuna",
+    "slug": "karuna-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "karuna",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#faf6ef" },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.karuna.reporter",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Karuna uses the camera to capture rescue photos so the team can identify the bird and triage urgency.",
+        "NSPhotoLibraryUsageDescription": "Karuna uses your photos to attach evidence to rescue reports.",
+        "NSLocationWhenInUseUsageDescription": "Karuna uses your location to tell the team where the bird is."
+      }
+    },
+    "android": {
+      "package": "app.karuna.reporter",
+      "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#faf6ef" },
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "READ_MEDIA_IMAGES"]
+    },
+    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      ["expo-location", { "locationAlwaysAndWhenInUsePermission": "Karuna uses your location only when you're reporting a rescue." }],
+      ["expo-camera", { "cameraPermission": "Karuna uses the camera to capture rescue photos." }],
+      ["expo-notifications", { "color": "#c44a1a" }]
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
