@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link, useParams } from 'react-router-dom';
 import { useOrg } from '../../../lib/org';
 import { listCases } from '../../../lib/queries';
 import { Search, ChevronRight, MapPin } from 'lucide-react';
 import type { CaseStatus } from '../../../lib/database.types';
+import { PageHeader, LoadingRow, ErrorRow, EmptyState } from '../../../components/ui';
 
 const STATUS_LABELS: Record<CaseStatus | 'all', string> = {
   all: 'All',
@@ -23,6 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function Cases() {
   const { org } = useOrg();
+  const { orgSlug } = useParams();
   const [status, setStatus] = useState<'all' | CaseStatus>('all');
   const [q, setQ] = useState('');
 
@@ -33,13 +36,8 @@ export default function Cases() {
   });
 
   return (
-    <main className="max-w-[1320px] mx-auto px-4 sm:px-7 py-6">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div>
-          <div className="kicker">Active board</div>
-          <h2 className="display text-3xl mt-1">Today's cases, <em className="italic text-rust">by urgency.</em></h2>
-        </div>
-      </div>
+    <>
+      <PageHeader kicker="Active board" title="Today's cases," accent="by urgency." />
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
@@ -57,15 +55,15 @@ export default function Cases() {
         <div className="hidden md:grid grid-cols-[110px_1fr_1.4fr_1fr_110px_40px] px-5 py-3 bg-cream text-[10px] font-mono tracking-widest uppercase text-ink-muted border-b border-black/10">
           <div>Case</div><div>Species</div><div>Threat · location</div><div>Volunteer</div><div>Status</div><div></div>
         </div>
-        {cases.isLoading && <div className="p-8 text-center text-ink-muted">Loading…</div>}
-        {cases.isError && (
-          <div className="p-8 text-center text-rust">Couldn't load cases. Likely RLS or missing env. {(cases.error as Error)?.message}</div>
-        )}
-        {!cases.isLoading && cases.data?.length === 0 && (
-          <div className="p-8 text-center text-ink-muted italic">No cases match these filters.</div>
-        )}
+        {cases.isLoading && <LoadingRow />}
+        {cases.isError && <ErrorRow err={cases.error} />}
+        {!cases.isLoading && cases.data?.length === 0 && <EmptyState title="No cases match these filters." />}
         {cases.data?.map((c) => (
-          <button key={c.id} className="grid grid-cols-[110px_1fr_1.4fr_1fr_110px_40px] gap-2 items-center px-5 py-3 border-b border-black/10 w-full text-left hover:bg-cream/60">
+          <Link
+            key={c.id}
+            to={`/${orgSlug}/team/cases/${c.id}`}
+            className="grid grid-cols-[110px_1fr_1.4fr_1fr_110px_40px] gap-2 items-center px-5 py-3 border-b border-black/10 w-full text-left hover:bg-cream/60"
+          >
             <div className="font-mono text-xs text-ink-soft">{c.short_id}</div>
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-xl">{c.species_emoji ?? '🪶'}</span>
@@ -78,17 +76,15 @@ export default function Cases() {
               <div className="text-sm truncate">{c.threat_summary}</div>
               <div className="text-[11px] text-ink-muted truncate"><MapPin size={10} className="inline -mt-0.5 mr-1" />{c.area}</div>
             </div>
-            <div className="text-sm text-ink-soft truncate">{c.assigned_to ? '—' : 'Unassigned'}</div>
+            <div className="text-sm text-ink-soft truncate">{c.assigned_to ? 'Assigned' : 'Unassigned'}</div>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${STATUS_COLOR[c.status] ?? 'bg-cream text-ink-soft'}`}>
               <span className="w-1.5 h-1.5 rounded-full bg-current" />
               {STATUS_LABELS[c.status]}
             </span>
             <ChevronRight size={16} className="text-ink-muted" />
-          </button>
+          </Link>
         ))}
       </div>
-
-      <div className="text-xs text-ink-muted mt-4">Data live from Supabase. Filters compose in-query. Realtime updates land here automatically once you wire <code className="font-mono bg-cream px-1 rounded">supabase.channel</code>.</div>
-    </main>
+    </>
   );
 }
