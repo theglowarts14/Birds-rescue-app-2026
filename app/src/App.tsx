@@ -13,6 +13,8 @@ import Overview from './pages/org/team/Overview';
 import Cases from './pages/org/team/Cases';
 import CaseDetail from './pages/org/team/CaseDetail';
 import Volunteers from './pages/org/team/Volunteers';
+import VolunteerProfile from './pages/org/team/VolunteerProfile';
+import Shifts from './pages/org/team/Shifts';
 import Partners from './pages/org/team/Partners';
 import Clinics from './pages/org/team/Clinics';
 import Inventory from './pages/org/team/Inventory';
@@ -46,19 +48,24 @@ export default function App() {
       <Route path="/:orgSlug" element={<OrgProvider><OrgLayout /></OrgProvider>}>
         <Route index element={<Navigate to="donate" replace />} />
 
+        {/* Donor */}
         <Route path="donate"          element={<Portal />} />
         <Route path="donate/sponsor"  element={<Sponsor />} />
         <Route path="donate/released" element={<Released />} />
         <Route path="donate/wall"     element={<Wall />} />
         <Route path="donate/csr"      element={<CSR />} />
 
+        {/* Public */}
         <Route path="edu" element={<Education />} />
 
+        {/* Team ops + admin share the sidebar */}
         <Route element={<TeamLayout />}>
           <Route path="team"                  element={<Overview />} />
           <Route path="team/cases"            element={<Cases />} />
           <Route path="team/cases/:caseId"    element={<CaseDetail />} />
           <Route path="team/volunteers"       element={<Volunteers />} />
+          <Route path="team/volunteers/:userId" element={<VolunteerProfile />} />
+          <Route path="team/shifts"           element={<Shifts />} />
           <Route path="team/partners"         element={<Partners />} />
           <Route path="team/clinics"          element={<Clinics />} />
           <Route path="team/inventory"        element={<Inventory />} />
@@ -72,6 +79,7 @@ export default function App() {
         </Route>
       </Route>
 
+      {/* Reporter web flow lives outside OrgLayout chrome — full screen */}
       <Route path="/:orgSlug/r" element={<OrgProvider><Report /></OrgProvider>} />
 
       <Route path="/team"   element={<Navigate to={`/${DEV_ORG}/team`} replace />} />
