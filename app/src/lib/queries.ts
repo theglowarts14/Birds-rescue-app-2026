@@ -455,3 +455,157 @@ export async function suggestVolunteers(orgId: string, area?: string | null, lim
   if (error && error.code !== '42883') throw error;
   return data ?? [];
 }
+
+/* ============ ADMIN DASHBOARD ============ */
+
+export async function adminDashboard(orgId: string) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fortnightAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const ignoreMissing = (e: any) =>
+    e && e.code !== '42P01' && e.code !== '42883' ? Promise.reject(e) : null;
+
+  const [
+    paidThisMonth, paidPrevMonth, recurring, sponsorships, allPaid,
+    receiptsAgg, products,
+    members, pendingInvites, activeShifts, metrics,
+    completions, modulesRes,
+    releasedThisMonth, releasedAll, recognitionOptIns,
+    auditAgg, lastEvent,
+  ] = await Promise.all([
+    supabase.from('donations').select('amount_inr', { count: 'exact' })
+      .eq('org_id', orgId).eq('status', 'paid').gte('paid_at', monthStart.toISOString()),
+    supabase.from('donations').select('amount_inr', { count: 'exact' })
+      .eq('org_id', orgId).eq('status', 'paid')
+      .gte('paid_at', prevMonthStart.toISOString())
+      .lt('paid_at', monthStart.toISOString()),
+    supabase.from('donations').select('razorpay_sub')
+      .eq('org_id', orgId).not('razorpay_sub', 'is', null),
+    supabase.from('donations').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).eq('status', 'paid').not('case_id', 'is', null),
+    supabase.from('donations').select('amount_inr')
+      .eq('org_id', orgId).eq('status', 'paid'),
+    supabase.from('donations').select('receipt_no, status')
+      .eq('org_id', orgId).eq('status', 'paid'),
+    supabase.from('donations')
+      .select('amount_inr, product:donation_products(label, emoji)')
+      .eq('org_id', orgId).eq('status', 'paid'),
+
+    supabase.from('org_members').select('user_id', { count: 'exact', head: true })
+      .eq('org_id', orgId),
+    supabase.from('pending_invites').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).is('accepted_at', null),
+    supabase.from('shifts').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).is('ends_at', null),
+    supabase.from('member_metrics').select('user_id, accept_rate, last_active_at, avg_response_seconds')
+      .eq('org_id', orgId),
+
+    supabase.from('training_completions').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId),
+    supabase.from('training_modules').select('id', { count: 'exact', head: true })
+      .or(`org_id.eq.${orgId},org_id.is.null`),
+
+    supabase.from('cases').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).eq('status', 'released').gte('released_at', monthStart.toISOString()),
+    supabase.from('cases').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).eq('status', 'released'),
+    supabase.from('donors').select('id', { count: 'exact', head: true })
+      .eq('display_consent', true),
+
+    supabase.from('case_events').select('id', { count: 'exact', head: true })
+      .eq('org_id', orgId).gte('created_at', weekAgo.toISOString()),
+    supabase.from('case_events').select('created_at, kind')
+      .eq('org_id', orgId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  for (const r of [paidThisMonth, paidPrevMonth, recurring, sponsorships, allPaid, receiptsAgg,
+                   products, members, pendingInvites, activeShifts, metrics, completions,
+                   modulesRes, releasedThisMonth, releasedAll, recognitionOptIns,
+                   auditAgg, lastEvent]) {
+    await ignoreMissing((r as any).error);
+  }
+
+  const paidMtd      = sumAmount(paidThisMonth.data);
+  const paidPrev     = sumAmount(paidPrevMonth.data);
+  const totalPaid    = sumAmount(allPaid.data);
+  const paidCount    = allPaid.data?.length ?? 0;
+  const avgGiftInr   = paidCount > 0 ? Math.round(totalPaid / paidCount) : 0;
+  const recurringCount = new Set((recurring.data ?? []).map((r: any) => r.razorpay_sub).filter(Boolean)).size;
+
+  const receiptsIssued = (receiptsAgg.data ?? []).filter((d: any) => d.receipt_no).length;
+  const receiptsPending = (receiptsAgg.data ?? []).filter((d: any) => !d.receipt_no).length;
+
+  const productTotals = new Map<string, { label: string; emoji: string | null; total: number; count: number }>();
+  for (const d of (products.data ?? []) as any[]) {
+    const p = d.product;
+    if (!p) continue;
+    const cur = productTotals.get(p.label) ?? { label: p.label, emoji: p.emoji ?? null, total: 0, count: 0 };
+    cur.total += d.amount_inr ?? 0;
+    cur.count += 1;
+    productTotals.set(p.label, cur);
+  }
+  const topProduct = Array.from(productTotals.values()).sort((a, b) => b.total - a.total)[0] ?? null;
+
+  const memberRows = metrics.data ?? [];
+  const inactive14 = memberRows.filter(
+    (m: any) => !m.last_active_at || new Date(m.last_active_at) < fortnightAgo,
+  ).length;
+  const acceptRates = memberRows.map((m: any) => m.accept_rate).filter((r: any) => r != null) as number[];
+  const avgAcceptRate = acceptRates.length > 0
+    ? Math.round(acceptRates.reduce((s, r) => s + r, 0) / acceptRates.length * 10) / 10
+    : null;
+  const avgResponseSeconds = (() => {
+    const xs = memberRows.map((m: any) => m.avg_response_seconds).filter((x: any) => x != null) as number[];
+    if (xs.length === 0) return null;
+    return Math.round(xs.reduce((s, x) => s + x, 0) / xs.length);
+  })();
+
+  const memberCount   = members.count ?? 0;
+  const moduleCount   = modulesRes.count ?? 0;
+  const completionCount = completions.count ?? 0;
+  const expected      = memberCount * moduleCount;
+  const trainingCompletionPct = expected > 0 ? Math.min(100, Math.round(completionCount / expected * 100)) : 0;
+
+  return {
+    money: {
+      paidMtd,
+      paidPrev,
+      momChangePct: paidPrev > 0 ? Math.round((paidMtd - paidPrev) / paidPrev * 100) : null,
+      recurringCount,
+      sponsorships: sponsorships.count ?? 0,
+      avgGiftInr,
+      topProduct,
+      receiptsIssued,
+      receiptsPending,
+      totalPaid,
+      paidCount,
+    },
+    team: {
+      total: memberCount,
+      pendingInvites: pendingInvites.count ?? 0,
+      onShiftNow: activeShifts.count ?? 0,
+      inactiveDays14: inactive14,
+      trainingCompletionPct,
+      avgAcceptRate,
+      avgResponseSeconds,
+    },
+    stories: {
+      releasedMtd: releasedThisMonth.count ?? 0,
+      cumulativeReleased: releasedAll.count ?? 0,
+      recognitionOptIns: recognitionOptIns.count ?? 0,
+    },
+    compliance: {
+      auditEventsThisWeek: auditAgg.count ?? 0,
+      lastAuditEventAt: lastEvent.data?.created_at ?? null,
+      lastAuditEventKind: lastEvent.data?.kind ?? null,
+      latestImpactPosterMonth: null as string | null,
+    },
+  };
+}
+
+function sumAmount(rows: { amount_inr?: number | null }[] | null | undefined): number {
+  return (rows ?? []).reduce((s, r) => s + (r.amount_inr ?? 0), 0);
+}

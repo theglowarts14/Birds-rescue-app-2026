@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState, Fragment, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   LayoutGrid, FileText, Users, Building2, Stethoscope, Boxes,
   Map, GraduationCap, History, Sparkles, Coins, Settings, Menu, X,
-  Radio,
+  Radio, ShieldCheck, UserCog,
 } from 'lucide-react';
 
 export function PageHeader({ kicker, title, accent, children }: {
@@ -61,46 +61,62 @@ export function Stat({ label, value, sub, accent }: {
    NAV
    ────────────────────────────────────────────────────────────────────── */
 
-const TEAM_NAV = [
-  { to: 'team',           label: 'Overview',  short: 'Home',  icon: LayoutGrid, end: true },
-  { to: 'team/cases',     label: 'Cases',     short: 'Cases', icon: FileText },
-  { to: 'team/volunteers',label: 'Volunteers',short: 'Team',  icon: Users },
-  { to: 'team/shifts',    label: 'Shifts',    icon: Radio },
-  { to: 'team/partners',  label: 'Partners',  icon: Building2 },
-  { to: 'team/clinics',   label: 'Clinics',   icon: Stethoscope },
-  { to: 'team/inventory', label: 'Inventory', icon: Boxes },
-  { to: 'team/heatmap',   label: 'Heatmap',   icon: Map },
-  { to: 'team/training',  label: 'Training',  icon: GraduationCap },
-  { to: 'team/audit',     label: 'Audit',     icon: History },
-  { to: 'team/impact',    label: 'Impact',    icon: Sparkles },
-  { to: 'team/grants',    label: 'Grants',    icon: Coins },
-  { to: 'admin/settings', label: 'Settings',  icon: Settings },
-] as const;
+type NavItem = {
+  to: string;
+  label: string;
+  short?: string;
+  icon: typeof LayoutGrid;
+  end?: boolean;
+  section?: 'admin';
+};
 
-const MOBILE_TABS = TEAM_NAV.slice(0, 3);
+const TEAM_NAV: readonly NavItem[] = [
+  { to: 'team',             label: 'Overview',   short: 'Home',  icon: LayoutGrid, end: true },
+  { to: 'team/cases',       label: 'Cases',      short: 'Cases', icon: FileText },
+  { to: 'team/volunteers',  label: 'Volunteers', short: 'Team',  icon: Users },
+  { to: 'team/shifts',      label: 'Shifts',     icon: Radio },
+  { to: 'team/partners',    label: 'Partners',   icon: Building2 },
+  { to: 'team/clinics',     label: 'Clinics',    icon: Stethoscope },
+  { to: 'team/inventory',   label: 'Inventory',  icon: Boxes },
+  { to: 'team/heatmap',     label: 'Heatmap',    icon: Map },
+  { to: 'team/training',    label: 'Training',   icon: GraduationCap },
+  { to: 'team/audit',       label: 'Audit',      icon: History },
+  { to: 'team/impact',      label: 'Impact',     icon: Sparkles },
+  { to: 'team/grants',      label: 'Grants',     icon: Coins },
+  { to: 'admin/dashboard',  label: 'Dashboard',  icon: ShieldCheck, section: 'admin' },
+  { to: 'admin/team',       label: 'Team',       icon: UserCog,     section: 'admin' },
+  { to: 'admin/settings',   label: 'Settings',   icon: Settings,    section: 'admin' },
+];
+
+const MOBILE_TABS = TEAM_NAV.slice(0, 3); // Overview · Cases · Volunteers
 const MORE_ITEMS  = TEAM_NAV.slice(3);
 
 export function TeamSidebar() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const loc = useLocation();
+  const firstAdminIdx = TEAM_NAV.findIndex((i) => i.section === 'admin');
   return (
     <aside className="hidden lg:flex flex-col w-56 shrink-0 sticky top-[68px] self-start py-6">
       <div className="kicker px-3 mb-3">Karuna ops</div>
       <nav className="space-y-0.5">
-        {TEAM_NAV.map((item) => {
+        {TEAM_NAV.map((item, idx) => {
           const path = `/${orgSlug}/${item.to}`;
           const active = item.end ? loc.pathname === path : loc.pathname.startsWith(path);
           const Icon = item.icon;
           return (
-            <Link
-              key={item.to}
-              to={path}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                active ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-cream'
-              }`}
-            >
-              <Icon size={15} /> {item.label}
-            </Link>
+            <Fragment key={item.to}>
+              {idx === firstAdminIdx && (
+                <div className="kicker px-3 pt-4 pb-1 text-rust">Admin</div>
+              )}
+              <Link
+                to={path}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                  active ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-cream'
+                }`}
+              >
+                <Icon size={15} /> {item.label}
+              </Link>
+            </Fragment>
           );
         })}
       </nav>

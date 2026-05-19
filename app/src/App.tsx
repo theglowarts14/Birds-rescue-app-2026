@@ -25,6 +25,7 @@ import ImpactPoster from './pages/org/team/ImpactPoster';
 import Grants from './pages/org/team/Grants';
 import Settings from './pages/org/admin/Settings';
 import Team from './pages/org/admin/Team';
+import Dashboard from './pages/org/admin/Dashboard';
 
 import Portal from './pages/org/donate/Portal';
 import Sponsor from './pages/org/donate/Sponsor';
@@ -74,6 +75,8 @@ export default function App() {
           <Route path="team/audit"            element={<Audit />} />
           <Route path="team/impact"           element={<ImpactPoster />} />
           <Route path="team/grants"           element={<Grants />} />
+          <Route path="admin"                 element={<Navigate to="dashboard" replace />} />
+          <Route path="admin/dashboard"       element={<Dashboard />} />
           <Route path="admin/settings"        element={<Settings />} />
           <Route path="admin/team"            element={<Team />} />
         </Route>
