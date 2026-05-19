@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   LayoutGrid, FileText, Users, Building2, Stethoscope, Boxes,
   Map, GraduationCap, History, Sparkles, Coins, Settings, Menu, X,
+  Radio,
 } from 'lucide-react';
 
 export function PageHeader({ kicker, title, accent, children }: {
@@ -56,10 +57,15 @@ export function Stat({ label, value, sub, accent }: {
   );
 }
 
+/* ───────────────────────────────────────────────────────────────────────
+   NAV
+   ────────────────────────────────────────────────────────────────────── */
+
 const TEAM_NAV = [
   { to: 'team',           label: 'Overview',  short: 'Home',  icon: LayoutGrid, end: true },
   { to: 'team/cases',     label: 'Cases',     short: 'Cases', icon: FileText },
   { to: 'team/volunteers',label: 'Volunteers',short: 'Team',  icon: Users },
+  { to: 'team/shifts',    label: 'Shifts',    icon: Radio },
   { to: 'team/partners',  label: 'Partners',  icon: Building2 },
   { to: 'team/clinics',   label: 'Clinics',   icon: Stethoscope },
   { to: 'team/inventory', label: 'Inventory', icon: Boxes },

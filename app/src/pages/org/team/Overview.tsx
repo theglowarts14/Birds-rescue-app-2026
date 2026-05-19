@@ -4,6 +4,7 @@ import { useOrg } from '../../../lib/org';
 import { dashboardStats, listCases, listIncoming } from '../../../lib/queries';
 import { ArrowUpRight, TrendingUp, Activity, MapPin, Phone } from 'lucide-react';
 import { Stat, LoadingRow, EmptyState } from '../../../components/ui';
+import { WhosOnNow } from '../../../components/WhosOnNow';
 
 export default function Overview() {
   const { org } = useOrg();
@@ -34,7 +35,7 @@ export default function Overview() {
         <Stat label="Released" value={stats.data?.released ?? '–'} sub="this month"        accent="sky" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_320px] gap-4">
         <section className="card">
           <div className="flex justify-between items-center mb-3">
             <h3 className="display text-xl">Critical right <em className="italic text-rust">now</em></h3>
@@ -91,6 +92,8 @@ export default function Overview() {
             ))}
           </ul>
         </section>
+
+        <WhosOnNow />
       </div>
 
       <div className="mt-6 text-xs text-ink-muted">

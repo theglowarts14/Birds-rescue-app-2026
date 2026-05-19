@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   UserPlus, Search, X, MoreHorizontal, Shield, Trash2, Clock,
-  CheckCircle2, AlertTriangle, Send,
+  CheckCircle2, AlertTriangle, Send, ExternalLink,
 } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { useOrg } from '../../../lib/org';
 import { useAuth } from '../../../lib/auth';
 import {
@@ -11,8 +12,6 @@ import {
   updateMemberRole, removeMember, cancelPendingInvite,
 } from '../../../lib/queries';
 import { PageHeader, LoadingRow, EmptyState, Stat } from '../../../components/ui';
-
-// ─── Role catalog ───────────────────────────────────────────────────────────
 
 type Role = 'owner' | 'coordinator' | 'vet' | 'field' | 'foster' | 'awareness';
 
@@ -27,11 +26,10 @@ const ROLES: { value: Role; label: string; blurb: string; chip: string }[] = [
 
 const ROLE_BY: Record<Role, typeof ROLES[number]> = Object.fromEntries(ROLES.map((r) => [r.value, r])) as never;
 
-// ─── Page ─────────────────────────────────────────────────────────────────────────────────
-
 export default function Team() {
   const { org } = useOrg();
   const { session } = useAuth();
+  const { orgSlug } = useParams();
   const qc = useQueryClient();
   const orgId = org?.id;
   const myUserId = session?.user.id;
@@ -76,7 +74,6 @@ export default function Team() {
         </button>
       </PageHeader>
 
-      {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <Stat label="Total members" value={rows.length} sub={`${ownerCount} owner${ownerCount === 1 ? '' : 's'}`} />
         <Stat label="On shift right now" value={onShift} accent="moss" sub="Available for dispatch" />
@@ -84,7 +81,6 @@ export default function Team() {
         <Stat label="Pending invites" value={pending.length} accent={pending.length > 0 ? 'amber' : undefined} sub={pending.length === 0 ? 'All accepted' : 'Not yet signed in'} />
       </div>
 
-      {/* Invite drawer */}
       {showInvite && (
         <InvitePanel
           orgId={orgId!}
@@ -97,7 +93,6 @@ export default function Team() {
         />
       )}
 
-      {/* Search + filter */}
       <div className="card mb-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-[200px] relative">
@@ -132,7 +127,6 @@ export default function Team() {
         </div>
       </div>
 
-      {/* Pending invites */}
       {pending.length > 0 && (
         <div className="card !p-0 overflow-hidden mb-4 border-amber/40">
           <div className="px-5 py-3 bg-amber/10 text-[11px] font-mono uppercase tracking-widest text-amber border-b border-amber/30 flex items-center gap-2">
@@ -161,7 +155,6 @@ export default function Team() {
         </div>
       )}
 
-      {/* Members list */}
       {members.isLoading && <LoadingRow />}
       {!members.isLoading && rows.length === 0 && (
         <EmptyState
@@ -190,6 +183,7 @@ export default function Team() {
               isMe={m.user_id === myUserId}
               isLastOwner={m.role === 'owner' && ownerCount <= 1}
               menuOpen={openMenuFor === m.user_id}
+              profileHref={`/${orgSlug}/team/volunteers/${m.user_id}`}
               onToggleMenu={() => setOpenMenuFor(openMenuFor === m.user_id ? null : m.user_id)}
               onChangeRole={async (newRole) => {
                 await updateMemberRole(orgId!, m.user_id, newRole);
@@ -202,7 +196,6 @@ export default function Team() {
         </div>
       )}
 
-      {/* Role legend */}
       <div className="mt-6 card">
         <div className="kicker mb-3">What the roles mean</div>
         <div className="grid sm:grid-cols-2 gap-3">
@@ -215,7 +208,6 @@ export default function Team() {
         </div>
       </div>
 
-      {/* Confirm remove */}
       {confirmRemove && (
         <ConfirmRemove
           member={confirmRemove}
@@ -230,8 +222,6 @@ export default function Team() {
     </>
   );
 }
-
-// ─── Pieces ─────────────────────────────────────────────────────────────────────────────────
 
 function RoleChip({ active, chip, children, onClick }: { active: boolean; chip: string; children: React.ReactNode; onClick: () => void }) {
   return (
@@ -258,12 +248,13 @@ function RoleBadge({ role }: { role: Role }) {
 }
 
 function MemberRow({
-  m, isMe, isLastOwner, menuOpen, onToggleMenu, onChangeRole, onAskRemove,
+  m, isMe, isLastOwner, menuOpen, profileHref, onToggleMenu, onChangeRole, onAskRemove,
 }: {
   m: MemberRow;
   isMe: boolean;
   isLastOwner: boolean;
   menuOpen: boolean;
+  profileHref: string;
   onToggleMenu: () => void;
   onChangeRole: (role: Role) => void;
   onAskRemove: () => void;
@@ -309,6 +300,12 @@ function MemberRow({
         </button>
         {menuOpen && (
           <div className="absolute right-3 top-12 z-10 w-56 bg-paper rounded-xl border border-black/10 shadow-lg overflow-hidden">
+            <Link
+              to={profileHref}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-cream inline-flex items-center gap-2 border-b border-black/5"
+            >
+              <ExternalLink size={12} /> Open profile · areas, priority
+            </Link>
             <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-ink-muted border-b border-black/5">
               Change role
             </div>
@@ -430,8 +427,6 @@ function ConfirmRemove({ member, onCancel, onConfirm }: { member: MemberRow; onC
     </div>
   );
 }
-
-// ─── Types + helpers ─────────────────────────────────────────────────────────────────
 
 interface MemberRow {
   user_id: string;

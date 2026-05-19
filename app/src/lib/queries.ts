@@ -119,8 +119,6 @@ export async function listOrgMembers(orgId: string) {
 }
 
 export async function inviteMember(orgId: string, phone: string, role: string, displayName?: string) {
-  // Sends OTP. The pending invite is recorded so the member appears in the
-  // admin table immediately; a trigger on profiles reconciles on first sign-in.
   const { error: otpErr } = await supabase.auth.signInWithOtp({ phone });
   if (otpErr) throw otpErr;
   const { error } = await supabase.from('pending_invites').insert({
@@ -129,7 +127,7 @@ export async function inviteMember(orgId: string, phone: string, role: string, d
     role,
     display_name: displayName ?? null,
   });
-  if (error && error.code !== '42P01') throw error; // 42P01 = relation doesn't exist yet
+  if (error && error.code !== '42P01') throw error;
   return { ok: true };
 }
 
@@ -308,5 +306,152 @@ export async function listDonationProducts(orgId: string) {
     .eq('is_active', true)
     .order('amount_inr');
   if (error) throw error;
+  return data ?? [];
+}
+
+/* ============ SHIFTS ============ */
+
+export async function listActiveShifts(orgId: string) {
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('*, profile:profiles(id, display_name, phone_e164)')
+    .eq('org_id', orgId)
+    .is('ends_at', null)
+    .order('starts_at', { ascending: false });
+  if (error && error.code !== '42P01') throw error;
+  return data ?? [];
+}
+
+export async function listMyShiftsWeek(orgId: string, userId: string) {
+  const since = new Date(); since.setDate(since.getDate() - 7);
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('*')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .gte('starts_at', since.toISOString())
+    .order('starts_at', { ascending: false });
+  if (error && error.code !== '42P01') throw error;
+  return data ?? [];
+}
+
+export async function listOrgShiftsWeek(orgId: string) {
+  const since = new Date(); since.setDate(since.getDate() - 7);
+  const { data, error } = await supabase
+    .from('shifts')
+    .select('*, profile:profiles(id, display_name)')
+    .eq('org_id', orgId)
+    .gte('starts_at', since.toISOString())
+    .order('starts_at', { ascending: false });
+  if (error && error.code !== '42P01') throw error;
+  return data ?? [];
+}
+
+export async function startShift(orgId: string, areas?: string[], plannedEnd?: string, notes?: string) {
+  const { data, error } = await supabase.rpc('start_shift', {
+    p_org_id: orgId,
+    p_area_focus: areas ?? null,
+    p_planned_end: plannedEnd ?? null,
+    p_notes: notes ?? null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function endShift(orgId: string) {
+  const { data, error } = await supabase.rpc('end_shift', { p_org_id: orgId });
+  if (error) throw error;
+  return data;
+}
+
+/* ============ CASE COMMENTS ============ */
+
+export async function listCaseComments(caseId: string) {
+  const { data, error } = await supabase
+    .from('case_comments')
+    .select('*, author:profiles(id, display_name)')
+    .eq('case_id', caseId)
+    .order('created_at', { ascending: true });
+  if (error && error.code !== '42P01') throw error;
+  return data ?? [];
+}
+
+export async function addCaseComment(orgId: string, caseId: string, body: string) {
+  const { error } = await supabase
+    .from('case_comments')
+    .insert({ org_id: orgId, case_id: caseId, body, author_id: (await supabase.auth.getUser()).data.user!.id });
+  if (error) throw error;
+}
+
+export async function editCaseComment(commentId: string, body: string) {
+  const { error } = await supabase.from('case_comments').update({ body }).eq('id', commentId);
+  if (error) throw error;
+}
+
+export async function deleteCaseComment(commentId: string) {
+  const { error } = await supabase.from('case_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+/* ============ MEMBER METRICS ============ */
+
+export async function listMemberMetrics(orgId: string) {
+  const { data, error } = await supabase
+    .from('member_metrics')
+    .select('*')
+    .eq('org_id', orgId);
+  if (error && error.code !== '42P01') throw error;
+  return data ?? [];
+}
+
+export async function getMemberDetail(orgId: string, userId: string) {
+  const [member, metrics, casesRes, shiftsRes] = await Promise.all([
+    supabase
+      .from('org_members')
+      .select('*, profile:profiles(id, display_name, phone_e164, email)')
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase.from('member_metrics').select('*').eq('org_id', orgId).eq('user_id', userId).maybeSingle(),
+    supabase.from('cases_with_species').select('id, short_id, status, species_name, species_freetext, kind, received_at, area')
+      .eq('org_id', orgId).eq('assigned_to', userId).order('received_at', { ascending: false }).limit(20),
+    supabase.from('shifts').select('*').eq('org_id', orgId).eq('user_id', userId).order('starts_at', { ascending: false }).limit(10),
+  ]);
+  if (member.error) throw member.error;
+  return {
+    member: member.data,
+    metrics: metrics.data,
+    cases: casesRes.data ?? [],
+    shifts: shiftsRes.data ?? [],
+  };
+}
+
+export async function updateMemberServiceAreas(orgId: string, userId: string, areas: string[]) {
+  const { error } = await supabase
+    .from('org_members')
+    .update({ service_areas: areas })
+    .eq('org_id', orgId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function updateMemberDispatchPriority(orgId: string, userId: string, priority: number) {
+  const { error } = await supabase
+    .from('org_members')
+    .update({ dispatch_priority: priority })
+    .eq('org_id', orgId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+/* ============ DISPATCH SUGGESTIONS ============ */
+
+export async function suggestVolunteers(orgId: string, area?: string | null, limit = 10) {
+  const { data, error } = await supabase.rpc('suggest_volunteers', {
+    p_org_id: orgId,
+    p_area: area ?? null,
+    p_limit: limit,
+  });
+  if (error && error.code !== '42883') throw error;
   return data ?? [];
 }
