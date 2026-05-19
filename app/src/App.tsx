@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { OrgProvider } from './lib/org';
+import { ScrollToTop } from './components/ScrollToTop';
 
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -40,54 +41,57 @@ const DEV_ORG = import.meta.env.VITE_DEV_ORG_SLUG || 'awcs';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/onboarding" element={<Onboarding />} />
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/onboarding" element={<Onboarding />} />
 
-      <Route path="/:orgSlug" element={<OrgProvider><OrgLayout /></OrgProvider>}>
-        <Route index element={<Navigate to="donate" replace />} />
+        <Route path="/:orgSlug" element={<OrgProvider><OrgLayout /></OrgProvider>}>
+          <Route index element={<Navigate to="donate" replace />} />
 
-        {/* Donor */}
-        <Route path="donate"          element={<Portal />} />
-        <Route path="donate/sponsor"  element={<Sponsor />} />
-        <Route path="donate/released" element={<Released />} />
-        <Route path="donate/wall"     element={<Wall />} />
-        <Route path="donate/csr"      element={<CSR />} />
+          {/* Donor */}
+          <Route path="donate"          element={<Portal />} />
+          <Route path="donate/sponsor"  element={<Sponsor />} />
+          <Route path="donate/released" element={<Released />} />
+          <Route path="donate/wall"     element={<Wall />} />
+          <Route path="donate/csr"      element={<CSR />} />
 
-        {/* Public */}
-        <Route path="edu" element={<Education />} />
+          {/* Public */}
+          <Route path="edu" element={<Education />} />
 
-        {/* Team ops + admin share the sidebar */}
-        <Route element={<TeamLayout />}>
-          <Route path="team"                  element={<Overview />} />
-          <Route path="team/cases"            element={<Cases />} />
-          <Route path="team/cases/:caseId"    element={<CaseDetail />} />
-          <Route path="team/volunteers"       element={<Volunteers />} />
-          <Route path="team/volunteers/:userId" element={<VolunteerProfile />} />
-          <Route path="team/shifts"           element={<Shifts />} />
-          <Route path="team/partners"         element={<Partners />} />
-          <Route path="team/clinics"          element={<Clinics />} />
-          <Route path="team/inventory"        element={<Inventory />} />
-          <Route path="team/heatmap"          element={<Heatmap />} />
-          <Route path="team/training"         element={<Training />} />
-          <Route path="team/audit"            element={<Audit />} />
-          <Route path="team/impact"           element={<ImpactPoster />} />
-          <Route path="team/grants"           element={<Grants />} />
-          <Route path="admin"                 element={<Navigate to="dashboard" replace />} />
-          <Route path="admin/dashboard"       element={<Dashboard />} />
-          <Route path="admin/settings"        element={<Settings />} />
-          <Route path="admin/team"            element={<Team />} />
+          {/* Team ops + admin share the sidebar */}
+          <Route element={<TeamLayout />}>
+            <Route path="team"                  element={<Overview />} />
+            <Route path="team/cases"            element={<Cases />} />
+            <Route path="team/cases/:caseId"    element={<CaseDetail />} />
+            <Route path="team/volunteers"       element={<Volunteers />} />
+            <Route path="team/volunteers/:userId" element={<VolunteerProfile />} />
+            <Route path="team/shifts"           element={<Shifts />} />
+            <Route path="team/partners"         element={<Partners />} />
+            <Route path="team/clinics"          element={<Clinics />} />
+            <Route path="team/inventory"        element={<Inventory />} />
+            <Route path="team/heatmap"          element={<Heatmap />} />
+            <Route path="team/training"         element={<Training />} />
+            <Route path="team/audit"            element={<Audit />} />
+            <Route path="team/impact"           element={<ImpactPoster />} />
+            <Route path="team/grants"           element={<Grants />} />
+            <Route path="admin"                 element={<Navigate to="dashboard" replace />} />
+            <Route path="admin/dashboard"       element={<Dashboard />} />
+            <Route path="admin/settings"        element={<Settings />} />
+            <Route path="admin/team"            element={<Team />} />
+          </Route>
         </Route>
-      </Route>
 
-      {/* Reporter web flow lives outside OrgLayout chrome — full screen */}
-      <Route path="/:orgSlug/r" element={<OrgProvider><Report /></OrgProvider>} />
+        {/* Reporter web flow lives outside OrgLayout chrome — full screen */}
+        <Route path="/:orgSlug/r" element={<OrgProvider><Report /></OrgProvider>} />
 
-      <Route path="/team"   element={<Navigate to={`/${DEV_ORG}/team`} replace />} />
-      <Route path="/donate" element={<Navigate to={`/${DEV_ORG}/donate`} replace />} />
-      <Route path="*"       element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="/team"   element={<Navigate to={`/${DEV_ORG}/team`} replace />} />
+        <Route path="/donate" element={<Navigate to={`/${DEV_ORG}/donate`} replace />} />
+        <Route path="*"       element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
