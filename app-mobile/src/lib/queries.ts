@@ -1,3 +1,4 @@
+// Mirror of the web app's query helpers, scoped to what the reporter app needs.
 import { supabase } from './supabase';
 
 export interface Organization {
@@ -82,13 +83,34 @@ export async function listMyReports(userId: string) {
 }
 
 export async function uploadReportPhoto(orgSlug: string, caseId: string, uri: string) {
-  const ext = uri.split('.').pop() ?? 'jpg';
+  // Upload the photo to Supabase Storage, then link its public URL back to the
+  // cases row so the donor portal / impact poster / team list can render a
+  // thumbnail without listing storage.
+  const ext = (uri.split('.').pop() ?? 'jpg').toLowerCase();
   const filename = `${orgSlug}/${caseId}/${Date.now()}.${ext}`;
   const res = await fetch(uri);
   const blob = await res.blob();
+
   const { data, error } = await supabase.storage
     .from('case-photos')
-    .upload(filename, blob, { contentType: `image/${ext}`, upsert: false });
+    .upload(filename, blob, { contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`, upsert: false });
   if (error) throw error;
+
+  // Best-effort: write the public URL onto the case. Falls through silently if
+  // the column doesn't exist yet (pre-migration 0007) so we never block the
+  // submit on this side-effect.
+  try {
+    const { data: pub } = supabase.storage.from('case-photos').getPublicUrl(data.path);
+    if (pub?.publicUrl) {
+      await supabase
+        .from('cases')
+        .update({ first_photo_url: pub.publicUrl })
+        .eq('id', caseId)
+        .is('first_photo_url', null);
+    }
+  } catch (e) {
+    console.warn('first_photo_url writeback failed', e);
+  }
+
   return data.path;
 }

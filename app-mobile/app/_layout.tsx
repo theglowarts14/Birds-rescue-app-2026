@@ -9,6 +9,8 @@ import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { C } from '../src/lib/colors';
 import { initSentry, Sentry } from '../src/lib/sentry';
+import { installTapHandler, registerAndSave } from '../src/lib/push';
+import { supabase } from '../src/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 initSentry();
@@ -26,6 +28,29 @@ function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
+
+  // Notification tap handler — deep links to /track/[id]
+  useEffect(() => {
+    const unsubscribe = installTapHandler();
+    return unsubscribe;
+  }, []);
+
+  // Register push token whenever sign-in happens (and on app launch if already signed in).
+  useEffect(() => {
+    let cancelled = false;
+    const sync = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (cancelled || !data.user) return;
+      registerAndSave(data.user.id).catch((e) => console.warn('push register failed', e));
+    };
+    sync();
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        registerAndSave(session.user.id).catch((e) => console.warn('push register failed', e));
+      }
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, []);
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: C.paper }} />;
 
