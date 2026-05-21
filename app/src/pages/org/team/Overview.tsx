@@ -92,7 +92,10 @@ export default function Overview() {
                   <div className="truncate">{i.raw_text}</div>
                   <div className="text-[11px] text-ink-muted"><MapPin size={9} className="inline mr-1" />{i.auto_area} · {i.from_e164}</div>
                 </div>
-                <button className="btn-primary !py-2 !px-3 !text-xs">Accept</button>
+                <button disabled title="Auto-accept flow coming soon" className="btn-primary !py-2 !px-3 !text-xs opacity-60 cursor-not-allowed">
+                  Accept
+                  <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+                </button>
               </li>
             ))}
           </ul>

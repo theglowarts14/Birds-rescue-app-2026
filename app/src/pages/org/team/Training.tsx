@@ -44,8 +44,13 @@ export default function Training() {
               {m.unlocks_dispatch && !isDone && (
                 <div className="text-xs text-rust mt-2">Required to be dispatched.</div>
               )}
-              <button className={`mt-3 text-sm font-semibold ${isDone ? 'text-moss' : 'text-rust'}`}>
+              <button
+                disabled
+                title="Module player coming soon"
+                className={`mt-3 text-sm font-semibold opacity-60 cursor-not-allowed inline-flex items-center gap-2 ${isDone ? 'text-moss' : 'text-rust'}`}
+              >
                 {isDone ? 'Review' : 'Start →'}
+                <span className="text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
               </button>
             </div>
           );

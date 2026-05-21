@@ -20,7 +20,10 @@ export default function Partners() {
   return (
     <>
       <PageHeader kicker="Auto-router" title="Partner NGOs" accent="we hand off to.">
-        <button className="btn-primary"><Plus size={14} /> Add partner</button>
+        <button disabled title="Coming soon" className="btn-primary opacity-60 cursor-not-allowed">
+          <Plus size={14} /> Add partner
+          <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+        </button>
       </PageHeader>
 
       {q.isLoading && <LoadingRow />}

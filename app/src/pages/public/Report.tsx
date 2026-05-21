@@ -116,7 +116,14 @@ export default function Report() {
               </div>
               <div>
                 <label className="kicker"><Camera size={11} className="inline mr-1" /> Photo (optional)</label>
-                <button className="w-full mt-1 px-3 py-6 bg-cream rounded-xl border border-dashed border-black/20 text-sm text-ink-muted">Tap to take a photo · upload to Supabase Storage</button>
+                <button
+                  disabled
+                  title="Use the Karuna mobile app to attach photos"
+                  className="w-full mt-1 px-3 py-6 bg-cream rounded-xl border border-dashed border-black/20 text-sm text-ink-muted opacity-60 cursor-not-allowed"
+                >
+                  Photos available in the Karuna mobile app
+                  <span className="block mt-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Web upload · soon</span>
+                </button>
               </div>
               <div>
                 <label className="kicker">A note (optional)</label>

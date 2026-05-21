@@ -11,7 +11,10 @@ export default function Clinics() {
   return (
     <>
       <PageHeader kicker="Vet network" title="Clinics" accent="we trust.">
-        <button className="btn-primary"><Plus size={14} /> Add clinic</button>
+        <button disabled title="Coming soon" className="btn-primary opacity-60 cursor-not-allowed">
+          <Plus size={14} /> Add clinic
+          <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+        </button>
       </PageHeader>
 
       {q.isLoading && <LoadingRow />}

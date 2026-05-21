@@ -45,9 +45,14 @@ export default function Grants() {
               <span className="inline-flex items-center gap-1"><Coins size={12} /> {g.amount}</span>
               <span className="inline-flex items-center gap-1"><FileText size={12} /> due {g.deadline}</span>
             </div>
-            <div className="mt-4 flex gap-2">
-              <button className="btn-primary !text-xs">Open pre-filled draft</button>
-              <button className="btn-ghost !text-xs"><ExternalLink size={12} /> Source</button>
+            <div className="mt-4 flex gap-2 items-center">
+              <button disabled title="Coming soon" className="btn-primary !text-xs opacity-60 cursor-not-allowed">
+                Open pre-filled draft
+              </button>
+              <button disabled title="Coming soon" className="btn-ghost !text-xs opacity-60 cursor-not-allowed">
+                <ExternalLink size={12} /> Source
+              </button>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-ink-muted">Soon</span>
             </div>
           </div>
         ))}

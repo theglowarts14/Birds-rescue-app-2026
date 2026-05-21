@@ -156,14 +156,26 @@ export default function ProfileScreen() {
 }
 
 function ActionRow({ icon, label, sub, onPress }: { icon: React.ReactNode; label: string; sub?: string; onPress?: () => void }) {
+  const inactive = !onPress;
   return (
-    <GhostButton onPress={onPress} style={{ justifyContent: 'flex-start', paddingHorizontal: SPACE[4] }}>
+    <GhostButton
+      onPress={onPress}
+      disabled={inactive}
+      style={{ justifyContent: 'flex-start', paddingHorizontal: SPACE[4], opacity: inactive ? 0.6 : 1 }}
+    >
       <Row style={{ flex: 1 }}>
         {icon}
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
           <Body style={{ fontFamily: F.sansSemi }}>{label}</Body>
           {sub && <Body small muted>{sub}</Body>}
         </View>
+        {inactive && (
+          <View style={{ backgroundColor: C.cream, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+            <Body small style={{ fontFamily: F.sansMedium, fontSize: 9, letterSpacing: 1, color: C.inkMuted, textTransform: 'uppercase' }}>
+              Soon
+            </Body>
+          </View>
+        )}
       </Row>
     </GhostButton>
   );

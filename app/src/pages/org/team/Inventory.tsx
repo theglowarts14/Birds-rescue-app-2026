@@ -12,7 +12,10 @@ export default function Inventory() {
   return (
     <>
       <PageHeader kicker="Stock" title="Inventory" accent="& low alerts.">
-        <button className="btn-primary"><Plus size={14} /> New item</button>
+        <button disabled title="Coming soon" className="btn-primary opacity-60 cursor-not-allowed">
+          <Plus size={14} /> New item
+          <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+        </button>
       </PageHeader>
 
       {low.length > 0 && (
@@ -28,6 +31,7 @@ export default function Inventory() {
       {q.isLoading && <LoadingRow />}
       {!q.isLoading && q.data?.length === 0 && <EmptyState icon={<Boxes size={28} />} title="No inventory tracked yet" />}
 
+      {/* Desktop table */}
       <div className="hidden md:block card !p-0 overflow-hidden">
         <div className="grid grid-cols-[1.5fr_100px_100px_100px_120px] px-5 py-3 bg-cream text-[10px] font-mono tracking-widest uppercase text-ink-muted border-b border-black/10">
           <div>Item</div><div>Stock</div><div>Unit</div><div>Low at</div><div></div>
@@ -49,9 +53,10 @@ export default function Inventory() {
         ))}
       </div>
 
+      {/* Mobile cards */}
       <div className="md:hidden space-y-2">
         {q.data?.map((r: any) => (
-          <div key={r.id} className={`card !p-3 relative ${r.low ? 'bg-amber/5 border-amber/30' : ''}`}>
+          <div key={r.id} className={`card !p-3 ${r.low ? 'bg-amber/5 border-amber/30' : ''}`}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="display truncate">{r.item}</div>
@@ -61,10 +66,10 @@ export default function Inventory() {
                 <div className={`display text-2xl ${r.low ? 'text-amber' : ''}`}>{r.stock}</div>
                 <div className="text-[10px] text-ink-muted font-mono uppercase">{r.unit}</div>
               </div>
+              {r.low && (
+                <span className="absolute top-0 right-0 -translate-y-1/2 px-2 py-0.5 rounded-full bg-amber text-paper text-[9px] font-mono uppercase tracking-wider">Reorder</span>
+              )}
             </div>
-            {r.low && (
-              <span className="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-amber text-paper text-[9px] font-mono uppercase tracking-wider">Reorder</span>
-            )}
           </div>
         ))}
       </div>

@@ -14,8 +14,14 @@ export default function ImpactPoster() {
   return (
     <>
       <PageHeader kicker="Auto-generated" title="Impact poster" accent={`· ${month}`}>
-        <button className="btn-ghost"><Share2 size={14} /> Share to Insta</button>
-        <button className="btn-primary"><Download size={14} /> Download PNG</button>
+        <button disabled title="Coming soon" className="btn-ghost opacity-60 cursor-not-allowed">
+          <Share2 size={14} /> Share to Insta
+          <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+        </button>
+        <button disabled title="Coming soon" className="btn-primary opacity-60 cursor-not-allowed">
+          <Download size={14} /> Download PNG
+          <span className="ml-1 text-[9px] font-mono uppercase tracking-widest opacity-70">Soon</span>
+        </button>
       </PageHeader>
 
       <p className="text-sm text-ink-soft mb-5 max-w-xl">
