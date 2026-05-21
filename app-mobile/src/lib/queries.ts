@@ -64,7 +64,7 @@ export async function createReport(input: {
 export async function getCaseStatus(caseId: string) {
   const { data, error } = await supabase
     .from('cases_with_species')
-    .select('id, short_id, status, species_name, species_emoji, threat_summary, area, received_at, rescued_at, released_at')
+    .select('id, short_id, status, species_name, species_emoji, threat_summary, area, received_at, rescued_at, released_at, first_photo_url')
     .eq('id', caseId)
     .single();
   if (error) throw error;
@@ -74,7 +74,7 @@ export async function getCaseStatus(caseId: string) {
 export async function listMyReports(userId: string) {
   const { data, error } = await supabase
     .from('cases_with_species')
-    .select('id, short_id, status, species_name, species_emoji, threat_summary, area, received_at')
+    .select('id, short_id, status, species_name, species_emoji, threat_summary, area, received_at, first_photo_url')
     .eq('reporter_id', userId)
     .order('received_at', { ascending: false })
     .limit(50);

@@ -1,4 +1,4 @@
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, BookOpen, Bell } from 'lucide-react-native';
@@ -13,7 +13,14 @@ export default function GuideScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.paper }}
-      contentContainerStyle={{ paddingTop: insets.top + SPACE[4], padding: SPACE[5], paddingBottom: SPACE[12] }}>
+      contentContainerStyle={{ paddingTop: insets.top + SPACE[4], padding: SPACE[5], paddingBottom: SPACE[12] }}
+      refreshControl={
+        <RefreshControl
+          refreshing={(species.isFetching && !species.isLoading) || (alerts.isFetching && !alerts.isLoading)}
+          onRefresh={() => { species.refetch(); alerts.refetch(); }}
+          tintColor={C.inkSoft}
+        />
+      }>
       <Kicker>Field guide</Kicker>
       <Display size="xl" style={{ marginTop: SPACE[2] }}>
         First aid <Display size="xl" italic accent="moss">before help arrives.</Display>
@@ -46,6 +53,9 @@ export default function GuideScreen() {
           <BookOpen size={11} color={C.inkMuted} /> Birds you'll meet first
         </Kicker>
         <View style={{ gap: SPACE[3], marginTop: SPACE[3] }}>
+          {!species.isLoading && (species.data?.length ?? 0) === 0 && (
+            <Card><Body small soft>Field guide is being prepared. Check back soon.</Body></Card>
+          )}
           {species.data?.map((s: any) => (
             <Card key={s.id}>
               <View style={{ flexDirection: 'row', gap: SPACE[3] }}>

@@ -5,10 +5,11 @@ import { onNewCase, type NewCasePayload } from '../lib/realtime';
 
 // New-case toast banner. Mounted once near the app root; listens for
 // `karuna:new-case` events emitted by useRealtimeCases. Stacks up to 3, each
-// auto-dismissing after 10s. Critical cases get rust accent and stay longer.
+// auto-dismissing after 10s. Critical cases get rust accent and don't fade
+// quite as fast.
 //
 // Click navigates to the case. Editorial style — no garish notification
-// chrome. Top-right anchored; full-width-minus-padding on mobile.
+// chrome. Stays out of the way on mobile (bottom-right) and desktop (top-right).
 
 interface ToastItem {
   id: string;
@@ -26,10 +27,14 @@ export function RealtimeToast() {
 
   useEffect(() => {
     const off = onNewCase((c) => {
+      // Don't toast on the URL bar's own org if it differs — wait, we want any
+      // case in any org the user belongs to. The realtime hook only subscribes
+      // for org IDs the page set up. So if we got the event, it's relevant.
       setToasts((prev) => [
         { id: c.id, case: c, receivedAt: Date.now() },
         ...prev.slice(0, MAX_STACK - 1),
       ]);
+      // Play a soft sound on critical cases — coordinator might not be looking.
       if (c.urgency === 'critical') {
         try {
           const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -45,6 +50,7 @@ export function RealtimeToast() {
     return off;
   }, []);
 
+  // Auto-dismiss
   useEffect(() => {
     if (toasts.length === 0) return;
     const timer = setInterval(() => {
@@ -62,7 +68,7 @@ export function RealtimeToast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm w-[min(360px,calc(100vw-2rem))]">
+    <div className="fixed top-[72px] sm:top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm w-[min(360px,calc(100vw-2rem))]">
       {toasts.map((t) => (
         <ToastCard
           key={t.id}

@@ -74,7 +74,7 @@ export function DonateModal({ open, onClose, amountInr, what, description, produ
       onClick={onClose}
     >
       <div
-        className="bg-paper rounded-2xl border border-black/10 max-w-md w-full p-6 shadow-2xl my-auto"
+        className="bg-paper rounded-2xl border border-black/10 max-w-md w-full p-6 shadow-2xl my-auto max-h-[calc(100vh-2rem)] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-1">

@@ -1,4 +1,4 @@
-import { ScrollView, View, Pressable, Linking } from 'react-native';
+import { ScrollView, View, Pressable, Linking, Share, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,8 +54,15 @@ export default function TrackScreen() {
         <>
           <Card accent={narrative.accent}>
             <Kicker>{narrative.kicker} · {c.data.short_id}</Kicker>
-            <Body style={{ fontSize: 64, marginTop: SPACE[2] }}>{c.data.species_emoji ?? '🪶'}</Body>
-            <Display size="xl" accent={narrative.accent} style={{ marginTop: SPACE[2] }}>{narrative.title}</Display>
+            {c.data.first_photo_url ? (
+              <Image
+                source={{ uri: c.data.first_photo_url }}
+                style={{ width: '100%', aspectRatio: 16/10, borderRadius: 14, marginTop: SPACE[3], backgroundColor: C.cream }}
+              />
+            ) : (
+              <Body style={{ fontSize: 64, marginTop: SPACE[2] }}>{c.data.species_emoji ?? '🪶'}</Body>
+            )}
+            <Display size="xl" accent={narrative.accent} style={{ marginTop: SPACE[3] }}>{narrative.title}</Display>
             <Body soft style={{ marginTop: SPACE[3] }}>
               {c.data.species_name ?? c.data.threat_summary ?? 'Case'} · reported {new Date(c.data.received_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}.
             </Body>
@@ -79,7 +86,12 @@ export default function TrackScreen() {
                 <MessageCircle size={14} color={C.ink} /> WhatsApp for update
               </GhostButton>
             )}
-            <GhostButton>
+            <GhostButton
+              onPress={() => Share.share({
+                message: `I reported a rescue with Karuna — ${c.data!.species_name ?? c.data!.threat_summary ?? 'a bird in trouble'} (${c.data!.short_id}). Status: ${c.data!.status.replace('-', ' ')}.`,
+                title: `Karuna rescue ${c.data!.short_id}`,
+              })}
+            >
               <Share2 size={14} color={C.ink} /> Share with a neighbour
             </GhostButton>
           </Stack>

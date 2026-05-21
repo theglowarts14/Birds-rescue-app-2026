@@ -1,8 +1,8 @@
-import { ScrollView, View, Pressable, StyleSheet } from 'react-native';
+import { ScrollView, View, Pressable, StyleSheet, RefreshControl, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { MapPin, ChevronRight } from 'lucide-react-native';
+import { MapPin, ChevronRight, ArrowRight } from 'lucide-react-native';
 import { Display, Body, Kicker, Card, Pill } from '../../src/components/UI';
 import { C, F, SPACE } from '../../src/lib/colors';
 import { supabase } from '../../src/lib/supabase';
@@ -27,16 +27,26 @@ export default function MyReportsScreen() {
     s === 'critical' ? 'rust' : s === 'released' ? 'sky' : s === 'recovering' ? 'moss' : 'amber';
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.paper }} contentContainerStyle={{ paddingTop: insets.top + SPACE[4], padding: SPACE[5], paddingBottom: SPACE[12] }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: C.paper }}
+      contentContainerStyle={{ paddingTop: insets.top + SPACE[4], padding: SPACE[5], paddingBottom: SPACE[12] }}
+      refreshControl={<RefreshControl refreshing={q.isFetching && !q.isLoading} onRefresh={() => q.refetch()} tintColor={C.inkSoft} />}
+    >
       <Kicker>My reports</Kicker>
       <Display size="xl" style={{ marginTop: SPACE[2] }}>
         Birds <Display size="xl" italic accent="rust">you answered for.</Display>
       </Display>
 
       {!userId && (
-        <Card style={{ marginTop: SPACE[5] }}>
-          <Body soft>Sign in (Profile tab) to see the rescues you've reported and follow their recovery.</Body>
-        </Card>
+        <Pressable onPress={() => router.push('/(tabs)/profile')} style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
+          <Card style={{ marginTop: SPACE[5] }}>
+            <Body soft>Sign in to see the rescues you've reported and follow their recovery.</Body>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: SPACE[3] }}>
+              <Body small style={{ color: C.rust, fontFamily: F.sansMedium }}>Go to Profile</Body>
+              <ArrowRight size={14} color={C.rust} />
+            </View>
+          </Card>
+        </Pressable>
       )}
 
       {q.isLoading && <Body small muted style={{ marginTop: SPACE[6] }}>Loading…</Body>}
@@ -52,7 +62,13 @@ export default function MyReportsScreen() {
         {q.data?.map((c: any) => (
           <Pressable key={c.id} onPress={() => router.push(`/track/${c.id}`)}
             style={({ pressed }) => [S.row, pressed && { backgroundColor: C.cream }]}>
-            <Body style={{ fontSize: 32 }}>{c.species_emoji ?? '🪶'}</Body>
+            {c.first_photo_url ? (
+              <Image source={{ uri: c.first_photo_url }} style={S.thumb} />
+            ) : (
+              <View style={S.thumbFallback}>
+                <Body style={{ fontSize: 28 }}>{c.species_emoji ?? '🪶'}</Body>
+              </View>
+            )}
             <View style={{ flex: 1, minWidth: 0 }}>
               <View style={{ flexDirection: 'row', gap: SPACE[2], alignItems: 'center', flexWrap: 'wrap' }}>
                 <Body small muted style={{ fontFamily: F.sansMedium }}>{c.short_id}</Body>
@@ -72,5 +88,13 @@ export default function MyReportsScreen() {
 }
 
 const S = StyleSheet.create({
-  row: { backgroundColor: C.paper, borderRadius: 16, borderWidth: 1, borderColor: C.hairline, padding: SPACE[3], flexDirection: 'row', alignItems: 'center', gap: SPACE[3] },
+  row: {
+    backgroundColor: C.paper, borderRadius: 16, borderWidth: 1, borderColor: C.hairline,
+    padding: SPACE[3], flexDirection: 'row', alignItems: 'center', gap: SPACE[3],
+  },
+  thumb: { width: 52, height: 52, borderRadius: 12, backgroundColor: C.cream },
+  thumbFallback: {
+    width: 52, height: 52, borderRadius: 12, backgroundColor: C.cream,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });
