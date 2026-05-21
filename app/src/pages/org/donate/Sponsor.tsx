@@ -1,11 +1,24 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useOrg } from '../../../lib/org';
 import { listCases } from '../../../lib/queries';
 import { DonorNav } from '../../../components/ui';
 import { Heart, Sparkles } from 'lucide-react';
+import { DonateModal } from '../../../components/DonateModal';
+
+const SPONSORSHIP_INR = 2000;
+
+interface PickedCase {
+  id: string;
+  short_id: string;
+  species: string;
+  emoji: string;
+}
 
 export default function Sponsor() {
   const { org } = useOrg();
+  const [picked, setPicked] = useState<PickedCase | null>(null);
+
   const cases = useQuery({
     queryKey: ['sponsorable', org?.id],
     queryFn: () => listCases(org!.id, { status: 'in-rescue' }),
@@ -39,9 +52,18 @@ export default function Sponsor() {
             <div className="mt-4 flex items-end justify-between">
               <div>
                 <div className="kicker">Funds needed</div>
-                <div className="display text-2xl">₹2,000</div>
+                <div className="display text-2xl">₹{SPONSORSHIP_INR.toLocaleString('en-IN')}</div>
               </div>
-              <button className="btn-primary !text-xs"><Heart size={12} /> Sponsor</button>
+              <button
+                onClick={() => setPicked({
+                  id: c.id, short_id: c.short_id,
+                  species: c.species_name ?? c.species_freetext ?? c.kind,
+                  emoji: c.species_emoji ?? '🪶',
+                })}
+                className="btn-primary !text-xs"
+              >
+                <Heart size={12} /> Sponsor
+              </button>
             </div>
             <div className="mt-3 inline-flex items-center gap-1 text-[10px] text-amber"><Sparkles size={10} /> Photo updates until release</div>
           </div>
@@ -54,6 +76,15 @@ export default function Sponsor() {
           <p className="text-sm text-ink-soft mt-2">All released. Check back tomorrow.</p>
         </div>
       )}
+
+      <DonateModal
+        open={!!picked}
+        onClose={() => setPicked(null)}
+        amountInr={SPONSORSHIP_INR}
+        what={picked ? `${picked.emoji} ${picked.species} · ${picked.short_id}` : ''}
+        description={picked ? `Full recovery for ${picked.short_id}` : undefined}
+        case_id={picked?.id}
+      />
     </main>
   );
 }

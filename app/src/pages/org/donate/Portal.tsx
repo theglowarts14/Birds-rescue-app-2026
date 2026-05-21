@@ -1,15 +1,26 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { useOrg } from '../../../lib/org';
 import { listDonationProducts, listReleases } from '../../../lib/queries';
 import { ArrowUpRight, Heart } from 'lucide-react';
 import { DonorNav, LoadingRow, ErrorRow } from '../../../components/ui';
+import { DonateModal } from '../../../components/DonateModal';
 
 const inr = (n: number) => '₹' + n.toLocaleString('en-IN');
+
+interface PickedProduct {
+  id: string;
+  label: string;
+  amount_inr: number;
+  detail: string | null;
+  emoji: string | null;
+}
 
 export default function Portal() {
   const { org } = useOrg();
   const { orgSlug } = useParams();
+  const [picked, setPicked] = useState<PickedProduct | null>(null);
 
   const products = useQuery({ queryKey: ['donation_products', org?.id], queryFn: () => listDonationProducts(org!.id), enabled: !!org?.id });
   const released = useQuery({ queryKey: ['releases', org?.id], queryFn: () => listReleases(org!.id), enabled: !!org?.id });
@@ -40,7 +51,16 @@ export default function Portal() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.data?.map((p) => (
-            <button key={p.id} className="card hover:-translate-y-1 transition cursor-pointer text-left">
+            <button
+              key={p.id}
+              onClick={() => {
+                if (p.is_recurring) {
+                  alert('Monthly giving is coming in M3 (see roadmap). For now, this is a one-time gift.');
+                }
+                setPicked({ id: p.id, label: p.label, amount_inr: p.amount_inr, detail: p.detail, emoji: p.emoji });
+              }}
+              className="card hover:-translate-y-1 transition cursor-pointer text-left"
+            >
               <div className="flex justify-between items-start">
                 <span className="text-4xl">{p.emoji}</span>
                 {p.is_recurring && (
@@ -88,6 +108,15 @@ export default function Portal() {
           </Link>
         </div>
       </section>
+
+      <DonateModal
+        open={!!picked}
+        onClose={() => setPicked(null)}
+        amountInr={picked?.amount_inr ?? 0}
+        what={picked ? `${picked.emoji ?? '🎁'} ${picked.label}` : ''}
+        description={picked?.detail ?? undefined}
+        product_id={picked?.id}
+      />
     </main>
   );
 }
