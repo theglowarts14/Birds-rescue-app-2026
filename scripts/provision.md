@@ -6,32 +6,58 @@
 
 ## Pre-flight (15 min)
 
-- [ ] Credit card on hand. Most accounts are free-tier; a few need a card.
-- [ ] AWCS' PAN number and 80G certificate scan ready.
-- [ ] Own (or are buying) domain `karuna.app`. Otherwise: Vercel-issued domain.
-- [ ] Decided on a transactional email (e.g. `hi@karuna.app`).
+- [ ] You have a credit card on hand. Most accounts are free-tier, but a few need a card on file.
+- [ ] You have AWCS' PAN number and 80G certificate scan ready.
+- [ ] You own (or are buying) the domain `karuna.app`. If not, fall back to a Vercel-issued domain — you can swap later.
+- [ ] You've decided on an email address for transactional mail (e.g. `hi@karuna.app` or your founder address).
+
+---
 
 ## 1 · Supabase project (30 min)
 
-1. https://supabase.com → New project → `karuna-prod` → region `ap-south-1` (Mumbai).
-2. Project Settings → API → copy **URL** + **anon public** + **service_role** keys.
-3. Authentication → Providers → enable Phone (Twilio) + Google OAuth.
-4. SQL Editor → run, in order: 0001_init, 0002_seed_global, 0003_seed_awcs, 0004_storage_receipts_push, 0005_pending_invites, 0006_shifts_comments_metrics, 0007_case_first_photo, 0008_receipt_email_tracking, 0009_report_rate_limit.
-5. Verify `case-photos` and `receipts` buckets exist.
+1. Sign up at https://supabase.com.
+2. **New project** → name `karuna-prod` → region `ap-south-1` (Mumbai, lowest latency in India) → strong DB password (save it).
+3. Wait ~2 minutes for provisioning.
+4. Project Settings → API → copy the **Project URL** and the **anon public** key. These go into the client envs.
+5. Project Settings → API → copy the **service_role** key. This goes into **Edge Function secrets only** — never into a client env.
+6. Authentication → Providers:
+   - Enable **Phone** → choose **Twilio** as the SMS provider → enter your Twilio SID + auth token + sender. (You can use the Twilio trial for AWCS testing, but Indian SMS DLT registration is mandatory before public launch.)
+   - Enable **Google** → create OAuth client at https://console.cloud.google.com → paste client ID + secret → set authorized redirect to `https://YOUR-PROJECT.supabase.co/auth/v1/callback`.
+7. SQL Editor → run all `app/supabase/migrations/*.sql` files in order (0001 through 0010 at the time of writing). The big-picture sequence:
+   - 0001 init, 0002–0003 seed data
+   - 0004 storage buckets + push tokens
+   - 0005 pending invites
+   - 0006 shifts + case comments + member metrics
+   - 0007 case first_photo_url
+   - 0008 receipt email tracking
+   - 0009 anonymous report rate limit
+   - 0010 realtime publication
+8. Storage → check that `case-photos` and `receipts` buckets exist (0004 creates them).
+9. Database → Replication → confirm `cases`, `case_events`, `case_comments`, `donations`, `shifts` are in `supabase_realtime` (0010 adds them).
+10. **Promote yourself to org owner** — sign in once at `/login` (so an `auth.users` row exists for you), then open SQL Editor and run `scripts/bootstrap-owner.sql` after editing the two `v_org_slug` / `v_identifier` lines. This is the only step that requires manual SQL; without it, RLS will return zero rows on the admin pages even though they render.
+
+---
 
 ## 2 · Razorpay (30 min)
 
-1. Sign up at https://razorpay.com under AWCS' details.
-2. KYC: PAN + bank + 80G cert. (1–3 business days.)
-3. Test keys from Settings → API Keys.
-4. Webhooks → URL: `https://YOUR-PROJECT.supabase.co/functions/v1/razorpay-webhook` → events: payment.captured, payment.failed, subscription.charged, subscription.cancelled → generate a 32-char secret.
+1. Sign up at https://razorpay.com with AWCS' details (or AWCS' admin signs up).
+2. KYC → upload PAN + bank details + 80G certificate. **This is the long pole** — Razorpay can take 1–3 business days to verify.
+3. While waiting, you can use **test mode** keys to develop the webhook flow.
+4. Dashboard → Settings → API Keys → generate test keys → copy `key_id` (public) + `key_secret` (server only).
+5. Dashboard → Settings → Webhooks → Add a webhook:
+   - URL: `https://YOUR-PROJECT.supabase.co/functions/v1/razorpay-webhook` (set after step 4)
+   - Active events: `payment.captured`, `payment.failed`, `subscription.charged`, `subscription.cancelled`
+   - Webhook secret: generate 32 random chars; save it
+6. Subscriptions plans (later): create a plan per recurring product (e.g. monthly bird fund, summer water bowls).
+
+---
 
 ## 3 · Edge Functions (45 min)
 
 ```bash
 cd app
 npm install -g supabase
-supabase login
+supabase login           # opens browser
 supabase link --project-ref YOUR-PROJECT-REF
 
 # Set secrets (use the values from steps 1.5, 2.5, and Resend below)
@@ -66,7 +92,17 @@ supabase functions deploy auto-route
 3. Once verified (5–10 min after DNS propagates), set `RECEIPTS_FROM` to `"Karuna · AWCS <receipts@karuna.app>"`. Without verification you can still send from `onboarding@resend.dev` for dev/testing but production donors will hit spam folders
 4. Create an API key under **API Keys** → copy to `RESEND_API_KEY` secret above
 
-Verify: `curl https://YOUR-PROJECT.supabase.co/functions/v1/razorpay-webhook -H 'content-type: application/json' -d '{}'` → 401 invalid signature.
+Verify:
+
+```bash
+# Sanity ping
+curl https://YOUR-PROJECT.supabase.co/functions/v1/razorpay-webhook \
+  -H 'content-type: application/json' \
+  -d '{}'
+# → 401 invalid signature (good — means the function runs)
+```
+
+---
 
 ## 4 · Web deploy (Vercel) (30 min)
 
@@ -175,7 +211,6 @@ Symptom → first thing to check:
 | Case insert fails with RLS error | Confirm `reporter_anon=true` is being passed. Check the "anon report" policy in `0001_init.sql`. |
 | Webhook gets 401 | `RAZORPAY_WEBHOOK_SECRET` mismatch. Re-paste from Razorpay dashboard. |
 | Receipt PDF doesn't appear in Storage | Edge function logs in Supabase. Common: service-role missing the `receipts` bucket policy. |
-| Receipt email bounces | Check Resend dashboard for the donor's email; verify `karuna.app` domain SPF/DKIM; re-send via admin Audit page |
 | Donor portal shows "Organization not found" | Migration `0003_seed_awcs.sql` didn't run. Re-run; check `organizations.slug = 'awcs'`. |
 | Push doesn't arrive | `profiles.push_token` empty for the recipient. Re-launch the mobile app to register. |
 | Public report rejected with "rate limited" | Check `report_rate_limits` for the fingerprint; clear `blocked_until` to unblock |
