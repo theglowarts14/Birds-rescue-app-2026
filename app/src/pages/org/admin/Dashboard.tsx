@@ -210,9 +210,14 @@ export default function Dashboard() {
                 value={`${d.money.receiptsPending}`}
                 accent={d.money.receiptsPending > 0 ? 'rust' : undefined}
               />
+              <RowKV
+                label="Email bounces"
+                value={`${(d.money as any).receiptsEmailFailed ?? 0}`}
+                accent={(d.money as any).receiptsEmailFailed > 0 ? 'amber' : undefined}
+              />
               <div className="mt-3 pt-3 border-t border-black/5 text-[11px] text-ink-soft leading-relaxed">
                 Receipts pending means a donation is paid but the PDF hasn't issued.
-                Edge function <span className="font-mono">issue-80g-receipt</span> retries on every webhook.
+                Email bounces mean the PDF exists but Resend couldn't deliver — re-send from the audit page.
               </div>
             </Panel>
           </div>
@@ -310,6 +315,17 @@ function buildActionItems(d: DashboardData | undefined): ActionItem[] {
       title: `${d.money.receiptsPending} 80G receipt${d.money.receiptsPending === 1 ? '' : 's'} pending`,
       hint: 'Donations marked paid but no PDF issued yet — typically resolved by the next webhook retry.',
       severity: 'high',
+      Icon: Receipt,
+      cta: { href: '/team/audit', label: 'Audit' },
+    });
+  }
+
+  if ((d.money as any).receiptsEmailFailed > 0) {
+    items.push({
+      key: 'receipt-email-failed',
+      title: `${(d.money as any).receiptsEmailFailed} receipt email${(d.money as any).receiptsEmailFailed === 1 ? '' : 's'} bounced`,
+      hint: 'PDF is in Storage but Resend failed to deliver. Re-send via the audit page or check donor email.',
+      severity: 'med',
       Icon: Receipt,
       cta: { href: '/team/audit', label: 'Audit' },
     });

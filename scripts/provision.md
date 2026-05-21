@@ -16,7 +16,7 @@
 1. https://supabase.com → New project → `karuna-prod` → region `ap-south-1` (Mumbai).
 2. Project Settings → API → copy **URL** + **anon public** + **service_role** keys.
 3. Authentication → Providers → enable Phone (Twilio) + Google OAuth.
-4. SQL Editor → run, in order: 0001_init, 0002_seed_global, 0003_seed_awcs, 0004_storage_receipts_push.
+4. SQL Editor → run, in order: 0001_init, 0002_seed_global, 0003_seed_awcs, 0004_storage_receipts_push, 0005_pending_invites, 0006_shifts_comments_metrics, 0007_case_first_photo, 0008_receipt_email_tracking.
 5. Verify `case-photos` and `receipts` buckets exist.
 
 ## 2 · Razorpay (30 min)
@@ -33,15 +33,29 @@ cd app
 npm install -g supabase
 supabase login
 supabase link --project-ref YOUR-PROJECT-REF
+
+# Set secrets (use the values from steps 1.5, 2.5, and Resend below)
 supabase secrets set \
-  RAZORPAY_WEBHOOK_SECRET='your-secret' \
+  RAZORPAY_WEBHOOK_SECRET='your-webhook-secret' \
   RAZORPAY_KEY_ID='rzp_test_…' \
-  RAZORPAY_KEY_SECRET='your-key-secret'
+  RAZORPAY_KEY_SECRET='your-key-secret' \
+  RESEND_API_KEY='re_…' \
+  RECEIPTS_FROM='Karuna · AWCS <receipts@karuna.app>' \
+  APP_URL='https://karuna.app'
+
+# Deploy
 supabase functions deploy razorpay-webhook
+supabase functions deploy create-razorpay-order
 supabase functions deploy issue-80g-receipt
 supabase functions deploy send-push
 supabase functions deploy auto-route
 ```
+
+**Resend setup (for 80G receipt emails)**:
+1. Sign up at https://resend.com (free tier: 100/day, 3000/month — more than enough for AWCS year-one)
+2. Add `karuna.app` under **Domains** and paste the SPF + DKIM + DMARC DNS records they provide
+3. Once verified (5–10 min after DNS propagates), set `RECEIPTS_FROM` to `"Karuna · AWCS <receipts@karuna.app>"`. Without verification you can still send from `onboarding@resend.dev` for dev/testing but production donors will hit spam folders
+4. Create an API key under **API Keys** → copy to `RESEND_API_KEY` secret above
 
 Verify: `curl https://YOUR-PROJECT.supabase.co/functions/v1/razorpay-webhook -H 'content-type: application/json' -d '{}'` → 401 invalid signature.
 
@@ -106,5 +120,6 @@ Then tell AWCS' coordinator: "we're ready for you to try one."
 | Case insert RLS error | Confirm `reporter_anon=true` passed; check anon policy |
 | Webhook 401 | RAZORPAY_WEBHOOK_SECRET mismatch |
 | Receipt PDF missing | Edge function logs; check `receipts` bucket policy |
+| Receipt email bounces | Check Resend dashboard for the donor's email; verify `karuna.app` domain SPF/DKIM; re-send via admin Audit page |
 | "Org not found" | 0003_seed_awcs not run; verify `organizations.slug = 'awcs'` |
 | Push doesn't arrive | `profiles.push_token` empty; re-launch mobile app |

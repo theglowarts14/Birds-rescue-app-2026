@@ -488,7 +488,7 @@ export async function adminDashboard(orgId: string) {
       .eq('org_id', orgId).eq('status', 'paid').not('case_id', 'is', null),
     supabase.from('donations').select('amount_inr')
       .eq('org_id', orgId).eq('status', 'paid'),
-    supabase.from('donations').select('receipt_no, status')
+    supabase.from('donations').select('receipt_no, status, receipt_email_status')
       .eq('org_id', orgId).eq('status', 'paid'),
     supabase.from('donations')
       .select('amount_inr, product:donation_products(label, emoji)')
@@ -537,6 +537,9 @@ export async function adminDashboard(orgId: string) {
 
   const receiptsIssued = (receiptsAgg.data ?? []).filter((d: any) => d.receipt_no).length;
   const receiptsPending = (receiptsAgg.data ?? []).filter((d: any) => !d.receipt_no).length;
+  const receiptsEmailFailed = (receiptsAgg.data ?? []).filter(
+    (d: any) => d.receipt_no && d.receipt_email_status === 'failed',
+  ).length;
 
   const productTotals = new Map<string, { label: string; emoji: string | null; total: number; count: number }>();
   for (const d of (products.data ?? []) as any[]) {
@@ -580,6 +583,7 @@ export async function adminDashboard(orgId: string) {
       topProduct,
       receiptsIssued,
       receiptsPending,
+      receiptsEmailFailed,
       totalPaid,
       paidCount,
     },
