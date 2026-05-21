@@ -1,17 +1,38 @@
-// Generate an 80G donation receipt PDF, upload to Storage, mark the donation row.
+// Generate an 80G donation receipt PDF, upload to Storage, mark the donation,
+// then email the donor a polished HTML receipt with a link to the PDF.
 //
 // Called by razorpay-webhook on payment.captured, or directly with service-role
-// JWT for re-issuance. Inputs: { donation_id }.
+// JWT for re-issuance. Inputs: { donation_id, force_email? }.
+//
+// Side effects:
+//   1. derive receipt_no (KR-D-{org_initials}-{8-digit-sequence})
+//   2. render PDF via pdf-lib (no headless browser needed)
+//   3. upload to Storage at receipts/{org_slug}/{receipt_no}.pdf
+//   4. write donations.receipt_no, .receipt_url, .receipt_issued_at
+//   5. send HTML email via Resend (see _shared/email.ts)
+//   6. write donations.receipt_emailed_at + .receipt_email_status (+error)
+//
+// Email failures don't fail the function. The receipt is in Storage regardless.
+// Admin Dashboard surfaces email-failed receipts so they can be re-sent.
 
 import { preflight, corsHeaders } from '../_shared/cors.ts';
 import { serviceClient } from '../_shared/supabase.ts';
+import { sendEmail } from '../_shared/email.ts';
+import { renderReceiptEmail } from '../_shared/receipt-email.ts';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://karuna.app';
+
+interface OrgRow   { id: string; slug: string; name: string; public_name: string | null; city: string | null; pan: string | null; brand_primary: string | null; }
+interface DonorRow { name: string | null; email: string | null; pan: string | null; phone_e164: string | null; }
+interface CaseRow  { id: string; short_id: string; }
+interface ProductRow { label: string; }
 
 Deno.serve(async (req) => {
   const pre = preflight(req); if (pre) return pre;
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
 
-  const { donation_id } = await req.json();
+  const { donation_id, force_email } = await req.json();
   if (!donation_id) return json({ error: 'donation_id required' }, 400);
 
   const supa = serviceClient();
@@ -19,54 +40,115 @@ Deno.serve(async (req) => {
   const { data: d, error } = await supa
     .from('donations')
     .select(`
-      id, amount_inr, paid_at, status, receipt_no,
-      org:organizations(slug, name, public_name, city, pan),
+      id, amount_inr, paid_at, status, receipt_no, receipt_url, receipt_email_status,
+      org:organizations(id, slug, name, public_name, city, pan, brand_primary),
       donor:donors(name, email, pan, phone_e164),
-      product:donation_products(label)
+      product:donation_products(label),
+      case:cases(id, short_id)
     `)
     .eq('id', donation_id)
     .single();
 
   if (error || !d) return json({ error: 'donation not found' }, 404);
   if (d.status !== 'paid') return json({ error: 'donation not paid' }, 400);
-  if (d.receipt_no && d.receipt_url) return json({ ok: true, receipt_url: d.receipt_url });
 
-  const { count } = await supa
-    .from('donations')
-    .select('id', { count: 'exact', head: true })
-    .eq('org_id', (d.org as any).id)
-    .eq('status', 'paid');
-  const orgInitials = (d.org as any).public_name?.[0] ?? (d.org as any).name[0];
-  const receiptNo = `KR-D-${orgInitials.toUpperCase()}-${String(count ?? 1).padStart(8, '0')}`;
+  const org     = d.org as OrgRow;
+  const donor   = d.donor as DonorRow;
+  const product = d.product as ProductRow | null;
+  const sponsoredCase = d.case as CaseRow | null;
 
-  const pdf = await renderReceipt({
-    receiptNo,
-    org: d.org as OrgRow,
-    donor: d.donor as DonorRow,
+  let receiptNo = d.receipt_no as string | null;
+  let receiptUrl = d.receipt_url as string | null;
+
+  // ─── 1-4: generate + upload + record (skip if already done) ──────────────
+  if (!receiptNo || !receiptUrl) {
+    const { count } = await supa
+      .from('donations')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', org.id)
+      .eq('status', 'paid');
+    const orgInitials = (org.public_name?.[0] ?? org.name[0] ?? 'X');
+    receiptNo = `KR-D-${orgInitials.toUpperCase()}-${String(count ?? 1).padStart(8, '0')}`;
+
+    const pdf = await renderReceipt({
+      receiptNo, org, donor,
+      amountInr: d.amount_inr,
+      paidAt: d.paid_at!,
+      productLabel: product?.label,
+    });
+
+    const path = `receipts/${org.slug}/${receiptNo}.pdf`;
+    const { error: upErr } = await supa.storage
+      .from('receipts')
+      .upload(path, pdf, { contentType: 'application/pdf', upsert: true });
+    if (upErr) return json({ error: 'storage upload failed', detail: upErr.message }, 500);
+
+    const { data: pub } = supa.storage.from('receipts').getPublicUrl(path);
+    receiptUrl = pub.publicUrl;
+
+    await supa.from('donations').update({
+      receipt_no: receiptNo,
+      receipt_url: receiptUrl,
+      receipt_issued_at: new Date().toISOString(),
+    }).eq('id', donation_id);
+  }
+
+  // ─── 5-6: email the donor ──────────────────────────────────
+  const alreadyEmailed = d.receipt_email_status === 'sent' && !force_email;
+  if (alreadyEmailed) {
+    return json({ ok: true, receipt_no: receiptNo, receipt_url: receiptUrl, emailed: 'already-sent' });
+  }
+
+  if (!donor?.email) {
+    await supa.from('donations').update({ receipt_email_status: 'no-email' }).eq('id', donation_id);
+    return json({ ok: true, receipt_no: receiptNo, receipt_url: receiptUrl, emailed: 'no-donor-email' });
+  }
+
+  const { subject, html, text } = renderReceiptEmail({
+    donorName: donor.name ?? 'Friend',
+    donorEmail: donor.email,
+    orgName: org.public_name ?? org.name,
+    orgCity: org.city,
+    orgPan: org.pan,
     amountInr: d.amount_inr,
     paidAt: d.paid_at!,
-    productLabel: (d.product as { label?: string } | null)?.label,
+    receiptNo: receiptNo!,
+    receiptUrl: receiptUrl!,
+    productLabel: product?.label ?? null,
+    caseShortId: sponsoredCase?.short_id ?? null,
+    caseTrackUrl: sponsoredCase
+      ? `${APP_URL}/${org.slug}/donate/sponsor`
+      : null,
+    brandColor: org.brand_primary ?? '#c44a1a',
   });
 
-  const path = `receipts/${(d.org as any).slug}/${receiptNo}.pdf`;
-  const { error: upErr } = await supa.storage
-    .from('receipts')
-    .upload(path, pdf, { contentType: 'application/pdf', upsert: true });
-  if (upErr) return json({ error: 'storage upload failed', detail: upErr.message }, 500);
-
-  const { data: pub } = supa.storage.from('receipts').getPublicUrl(path);
+  const sent = await sendEmail({
+    to: donor.email,
+    subject, html, text,
+    reply_to: 'hi@karuna.app',
+    tags: [
+      { name: 'kind', value: '80g-receipt' },
+      { name: 'org', value: org.slug },
+    ],
+  });
 
   await supa.from('donations').update({
-    receipt_no: receiptNo,
-    receipt_url: pub.publicUrl,
-    receipt_issued_at: new Date().toISOString(),
+    receipt_emailed_at: sent.ok ? new Date().toISOString() : null,
+    receipt_email_status: sent.ok ? 'sent' : 'failed',
+    receipt_email_error: sent.ok ? null : (sent.error ?? 'unknown').slice(0, 500),
   }).eq('id', donation_id);
 
-  return json({ ok: true, receipt_no: receiptNo, receipt_url: pub.publicUrl });
+  return json({
+    ok: true,
+    receipt_no: receiptNo,
+    receipt_url: receiptUrl,
+    emailed: sent.ok ? 'sent' : 'failed',
+    email_error: sent.ok ? undefined : sent.error,
+    email_id: sent.id,
+  });
 });
 
-interface OrgRow  { slug: string; name: string; public_name: string | null; city: string | null; pan: string | null; }
-interface DonorRow { name: string | null; email: string | null; pan: string | null; phone_e164: string | null; }
+// ─── PDF rendering (unchanged from before) ────────────────────────────
 
 async function renderReceipt(input: {
   receiptNo: string;
@@ -96,8 +178,8 @@ async function renderReceipt(input: {
   let y = 720;
   page.drawText('Received with thanks from', { x: 40, y, size: 10, font, color: muted }); y -= 16;
   page.drawText(donor.name ?? '—', { x: 40, y, size: 16, font: bold, color: ink }); y -= 14;
-  if (donor.email)      { page.drawText(donor.email, { x: 40, y, size: 10, font, color: muted }); y -= 13; }
-  if (donor.pan)        { page.drawText(`PAN: ${donor.pan}`, { x: 40, y, size: 10, font, color: muted }); y -= 13; }
+  if (donor.email) { page.drawText(donor.email, { x: 40, y, size: 10, font, color: muted }); y -= 13; }
+  if (donor.pan)   { page.drawText(`PAN: ${donor.pan}`, { x: 40, y, size: 10, font, color: muted }); y -= 13; }
 
   y -= 12;
   page.drawText('Amount donated', { x: 40, y, size: 10, font, color: muted }); y -= 22;
