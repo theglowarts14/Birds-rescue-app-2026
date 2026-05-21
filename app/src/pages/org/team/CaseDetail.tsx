@@ -7,6 +7,7 @@ import {
 import { ArrowLeft, MapPin, Clock, Stethoscope, Camera, Phone, Radio, Send } from 'lucide-react';
 import { LoadingRow, ErrorRow } from '../../../components/ui';
 import { CaseComments } from '../../../components/CaseComments';
+import { useRealtimeCase } from '../../../lib/realtime';
 import type { CaseStatus } from '../../../lib/database.types';
 
 const NEXT: Record<CaseStatus, CaseStatus | null> = {
@@ -24,6 +25,7 @@ export default function CaseDetail() {
   const c = useQuery({ queryKey: ['case', caseId], queryFn: () => getCase(caseId!), enabled: !!caseId });
   const t = useQuery({ queryKey: ['case-timeline', caseId], queryFn: () => getCaseTimeline(caseId!), enabled: !!caseId });
   const treat = useQuery({ queryKey: ['case-treatments', caseId], queryFn: () => getCaseTreatments(caseId!), enabled: !!caseId });
+  useRealtimeCase(caseId);
   const suggest = useQuery({
     queryKey: ['suggest', caseId, c.data?.area, c.data?.org_id],
     queryFn: () => suggestVolunteers(c.data!.org_id, c.data!.area ?? null, 5),

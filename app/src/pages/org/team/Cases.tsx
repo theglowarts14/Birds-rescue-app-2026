@@ -6,6 +6,7 @@ import { listCases } from '../../../lib/queries';
 import { Search, ChevronRight, MapPin } from 'lucide-react';
 import type { CaseStatus } from '../../../lib/database.types';
 import { PageHeader, LoadingRow, ErrorRow, EmptyState } from '../../../components/ui';
+import { useRealtimeCases } from '../../../lib/realtime';
 
 const STATUS_LABELS: Record<CaseStatus | 'all', string> = {
   all: 'All',
@@ -34,6 +35,8 @@ export default function Cases() {
     queryFn: () => listCases(org!.id, { status, q }),
     enabled: !!org?.id,
   });
+
+  useRealtimeCases(org?.id);
 
   return (
     <>

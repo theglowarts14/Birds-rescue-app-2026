@@ -1,26 +1,41 @@
 import { ScrollView, View, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { ChevronLeft, Phone, MessageCircle, Share2 } from 'lucide-react-native';
-import { Display, Body, Kicker, Card, PrimaryButton, GhostButton, Stack, Pill } from '../../src/components/UI';
+import { Display, Body, Kicker, Card, PrimaryButton, GhostButton, Stack, Pill, Row } from '../../src/components/UI';
 import { C, F, SPACE } from '../../src/lib/colors';
 import { getCaseStatus, getOrgBySlug } from '../../src/lib/queries';
-import { DEFAULT_ORG_SLUG } from '../../src/lib/supabase';
+import { DEFAULT_ORG_SLUG, supabase } from '../../src/lib/supabase';
 
 const STATUS_NARRATIVE: Record<string, { kicker: string; title: string; accent: 'rust'|'amber'|'moss'|'sky' }> = {
-  critical:           { kicker: 'Just received', title: 'A volunteer is being dispatched.',         accent: 'rust'  },
-  'in-rescue':        { kicker: 'On the way',    title: 'A rescuer is heading there now.',          accent: 'amber' },
-  recovering:         { kicker: 'In our care',   title: 'Resting. Healing. Eating well.',           accent: 'moss'  },
-  released:           { kicker: 'Released',      title: 'Back to sky. Thank you for spotting her.', accent: 'sky'   },
-  'closed-unrescued': { kicker: 'Closed',        title: "We couldn't find them in time.",           accent: 'rust'  },
+  critical:           { kicker: 'Just received', title: 'A volunteer is being dispatched.',       accent: 'rust'  },
+  'in-rescue':        { kicker: 'On the way',    title: 'A rescuer is heading there now.',        accent: 'amber' },
+  recovering:         { kicker: 'In our care',   title: 'Resting. Healing. Eating well.',         accent: 'moss'  },
+  released:           { kicker: 'Released',      title: 'Back to sky. Thank you for spotting her.', accent: 'sky' },
+  'closed-unrescued': { kicker: 'Closed',        title: 'We couldn\'t find them in time.',        accent: 'rust'  },
 };
 
 export default function TrackScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const c   = useQuery({ queryKey: ['case', id], queryFn: () => getCaseStatus(id!), enabled: !!id, refetchInterval: 30_000 });
+  const qc = useQueryClient();
+  const c   = useQuery({ queryKey: ['case', id], queryFn: () => getCaseStatus(id!), enabled: !!id, refetchInterval: 60_000 });
   const org = useQuery({ queryKey: ['org', DEFAULT_ORG_SLUG], queryFn: () => getOrgBySlug(DEFAULT_ORG_SLUG) });
+
+  // Realtime: status changes ping the tracker immediately. Polling stays as a
+  // fallback (slow network, websocket dropped).
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`case:${id}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'cases', filter: `id=eq.${id}` },
+        () => qc.invalidateQueries({ queryKey: ['case', id] }))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, qc]);
 
   const narrative = c.data ? STATUS_NARRATIVE[c.data.status] : null;
 

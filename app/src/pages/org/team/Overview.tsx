@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { useOrg } from '../../../lib/org';
 import { dashboardStats, listCases, listIncoming } from '../../../lib/queries';
-import { ArrowUpRight, TrendingUp, Activity, MapPin, Phone } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, MapPin, Phone } from 'lucide-react';
 import { Stat, LoadingRow, EmptyState } from '../../../components/ui';
 import { WhosOnNow } from '../../../components/WhosOnNow';
+import { useRealtimeCases, useRealtimeShifts } from '../../../lib/realtime';
 
 export default function Overview() {
   const { org } = useOrg();
@@ -14,6 +15,10 @@ export default function Overview() {
   const stats    = useQuery({ queryKey: ['stats', orgId],    queryFn: () => dashboardStats(orgId!),    enabled: !!orgId });
   const critical = useQuery({ queryKey: ['critical', orgId], queryFn: () => listCases(orgId!, { status: 'critical' }), enabled: !!orgId });
   const incoming = useQuery({ queryKey: ['incoming', orgId], queryFn: () => listIncoming(orgId!),    enabled: !!orgId });
+
+  // Live updates — new cases pop into the lists; toast surfaces critical ones.
+  useRealtimeCases(orgId);
+  useRealtimeShifts(orgId);
 
   return (
     <>
@@ -96,8 +101,14 @@ export default function Overview() {
         <WhosOnNow />
       </div>
 
-      <div className="mt-6 text-xs text-ink-muted">
-        <Activity size={12} className="inline mr-1" /> Live via Supabase Realtime once subscriptions are wired. <TrendingUp size={12} className="inline mx-1" /> MTD spend: ₹{(stats.data?.spendMTD ?? 0).toLocaleString('en-IN')}.
+      <div className="mt-6 text-xs text-ink-muted inline-flex items-center gap-2">
+        <span className="inline-flex items-center gap-1 text-moss">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
+          Live
+        </span>
+        <span>· new cases land here without a refresh.</span>
+        <TrendingUp size={12} className="inline mx-1" />
+        MTD spend: ₹{(stats.data?.spendMTD ?? 0).toLocaleString('en-IN')}.
       </div>
     </>
   );
