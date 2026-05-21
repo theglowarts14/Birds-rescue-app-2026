@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useOrg } from '../../lib/org';
-import { createCase } from '../../lib/queries';
-import { AlertCircle, Camera, MapPin, Phone, Send, ChevronLeft } from 'lucide-react';
+import { submitAnonymousReport } from '../../lib/queries';
+import { AlertCircle, Camera, MapPin, Phone, Send, ChevronLeft, ShieldCheck } from 'lucide-react';
 import type { CaseKind, CaseProblem, CaseUrgency } from '../../lib/database.types';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
 
 const KINDS: { v: CaseKind; emoji: string; label: string }[] = [
   { v: 'bird', emoji: '🪶', label: 'Bird' },
@@ -30,11 +31,20 @@ export default function Report() {
   const { org } = useOrg();
   const nav = useNavigate();
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<{ kind?: CaseKind; problem?: CaseProblem; urgency?: CaseUrgency; area?: string; notes?: string; reporter_anon?: boolean }>({ reporter_anon: true });
+  const [draft, setDraft] = useState<{ kind?: CaseKind; problem?: CaseProblem; urgency?: CaseUrgency; area?: string; notes?: string }>({});
+  const [captchaToken, setCaptchaToken] = useState<string>('');
 
   const submit = useMutation({
-    mutationFn: async () => createCase({ org_id: org!.id, kind: draft.kind!, problem: draft.problem!, urgency: draft.urgency!, area: draft.area, notes: draft.notes, reporter_anon: true }),
-    onSuccess: (c) => nav(`/${orgSlug}/r/${c.id}`),
+    mutationFn: async () => submitAnonymousReport({
+      org_slug: orgSlug!,
+      kind: draft.kind!,
+      problem: draft.problem!,
+      urgency: draft.urgency!,
+      area: draft.area,
+      notes: draft.notes,
+      turnstile_token: captchaToken || undefined,
+    }),
+    onSuccess: (c) => nav(`/${orgSlug}/r/${c.case_id}`),
   });
 
   return (
@@ -112,13 +122,24 @@ export default function Report() {
                 <label className="kicker">A note (optional)</label>
                 <textarea value={draft.notes ?? ''} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} rows={3} className="w-full mt-1 px-3 py-2.5 bg-cream rounded-xl border border-black/10" placeholder="Bird seems to have a hurt wing, can't fly…" />
               </div>
-              <button onClick={() => submit.mutate()} disabled={submit.isPending || !draft.area} className="btn-primary w-full justify-center !py-3">
+
+              {/* CAPTCHA — Cloudflare Turnstile */}
+              <div className="pt-2">
+                <TurnstileWidget onToken={setCaptchaToken} action="anonymous-report" />
+              </div>
+
+              <button onClick={() => submit.mutate()} disabled={submit.isPending || !draft.area || !captchaToken} className="btn-primary w-full justify-center !py-3">
                 <Send size={16} /> {submit.isPending ? 'Sending…' : 'Send to helpline'}
               </button>
+
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-ink-muted">
+                <ShieldCheck size={10} /> Karuna verifies you're not a bot before alerting the team.
+              </div>
+
               {submit.isError && (
                 <div className="bg-rust/10 text-rust text-sm p-3 rounded-xl flex items-start gap-2">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                  Couldn't send. RLS may block anonymous insert if reporter_anon policy isn't set up. {(submit.error as Error)?.message}
+                  {(submit.error as Error)?.message ?? 'Could not send. Try again or call the helpline.'}
                 </div>
               )}
               <p className="text-xs text-ink-muted text-center">Or call <a href={`tel:${org?.helpline_e164}`} className="text-rust font-semibold">{org?.helpline_e164}</a></p>

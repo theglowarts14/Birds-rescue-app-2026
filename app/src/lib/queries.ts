@@ -68,6 +68,43 @@ export async function createCase(input: {
   return data;
 }
 
+/**
+ * Public anonymous report — goes through the submit-anonymous-report Edge
+ * Function, which adds Turnstile CAPTCHA verification + per-IP rate limiting.
+ * Used by the web /:orgSlug/r flow. Mobile uses direct insert (see app-mobile
+ * queries) gated by app-install friction.
+ */
+export async function submitAnonymousReport(input: {
+  org_slug: string;
+  kind: 'bird' | 'animal' | 'wildlife';
+  problem: 'injured' | 'stuck' | 'orphaned' | 'cruelty';
+  urgency: 'critical' | 'moderate' | 'low';
+  area?: string;
+  lat?: number;
+  lng?: number;
+  notes?: string;
+  species_freetext?: string;
+  threat_summary?: string;
+  turnstile_token?: string;
+}): Promise<{ case_id: string; short_id: string }> {
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-anonymous-report`;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
+    throw new Error(body.message ?? body.error ?? `Submit failed (${res.status})`);
+  }
+  return await res.json();
+}
+
 export async function updateCaseStatus(caseId: string, status: string) {
   const { error } = await supabase.from('cases').update({ status }).eq('id', caseId);
   if (error) throw error;
